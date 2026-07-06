@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:;">
+<title>HELM · agentic ops</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23191510'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23e8b34b' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<nav class="rail" id="rail">
+  <a class="wordmark" href="#/today">
+    <span class="wordmark-h">HELM</span>
+    <span class="wordmark-sub">AGENTIC OPS · LOCAL</span>
+  </a>
+  <div class="rail-nav">
+    <a href="#/today"    data-nav="today"><span class="nav-no">01</span>TODAY</a>
+    <a href="#/launch"   data-nav="launch"><span class="nav-no">02</span>LAUNCHPAD</a>
+    <a href="#/sessions" data-nav="sessions"><span class="nav-no">03</span>SESSIONS</a>
+  </div>
+  <div class="rail-foot">
+    <div class="lamp-row"><span class="lamp lamp-green"></span>127.0.0.1:7777</div>
+    <div class="rail-clock" id="clock">00:00:00</div>
+    <div class="rail-note">nothing leaves this machine</div>
+  </div>
+</nav>
+
+<main class="main" id="main">
+  <div class="boot-note">warming instruments…</div>
+</main>
+
+<!-- Run console drawer -->
+<section class="console" id="console" hidden>
+  <header class="console-bar" id="console-bar">
+    <span class="console-title"><span class="lamp" id="console-lamp"></span>CONSOLE</span>
+    <div class="console-tabs" id="console-tabs"></div>
+    <div class="console-actions">
+      <button class="btn btn-ghost btn-sm" id="console-kill" hidden>KILL</button>
+      <button class="btn btn-ghost btn-sm" id="console-toggle">▲</button>
+    </div>
+  </header>
+  <div class="console-body" id="console-body"></div>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>

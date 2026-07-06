@@ -1,0 +1,10 @@
+{
+  "name": "helm",
+  "version": "1.0.0",
+  "description": "Local agentic operations console for Claude Code — daily reports, one-click skills, session log.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "private": true
+}
