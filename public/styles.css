@@ -40,27 +40,27 @@
 }
 
 :root {
-  /* surfaces — warm black, tinted toward the amber hue */
-  --bg:        oklch(0.155 0.009 78);
-  --bg-raise:  oklch(0.185 0.011 78);
-  --bg-panel:  oklch(0.205 0.012 78);
-  --bg-hover:  oklch(0.235 0.014 78);
-  --line:      oklch(0.30 0.018 78);
-  --line-soft: oklch(0.245 0.014 78);
+  /* surfaces — wine-black, tinted toward the burgundy hue */
+  --bg:        oklch(0.150 0.010 15);
+  --bg-raise:  oklch(0.180 0.012 15);
+  --bg-panel:  oklch(0.200 0.014 15);
+  --bg-hover:  oklch(0.230 0.016 15);
+  --line:      oklch(0.30 0.022 15);
+  --line-soft: oklch(0.245 0.017 15);
 
   /* ink */
-  --text:       oklch(0.93 0.016 84);
-  --text-dim:   oklch(0.67 0.022 80);
-  --text-faint: oklch(0.49 0.018 78);
+  --text:       oklch(0.93 0.008 15);
+  --text-dim:   oklch(0.67 0.016 15);
+  --text-faint: oklch(0.49 0.015 15);
 
-  /* signal */
-  --amber:      oklch(0.80 0.146 76);
-  --amber-dim:  oklch(0.62 0.11 72);
-  --amber-wash: oklch(0.80 0.146 76 / 0.09);
+  /* signal — burgundy accent; danger shifts to orange to stay distinct */
+  --accent:      oklch(0.71 0.115 12);
+  --accent-dim:  oklch(0.55 0.105 12);
+  --accent-wash: oklch(0.71 0.115 12 / 0.10);
   --green:      oklch(0.77 0.13 150);
   --green-wash: oklch(0.77 0.13 150 / 0.10);
-  --red:        oklch(0.68 0.185 29);
-  --red-wash:   oklch(0.68 0.185 29 / 0.10);
+  --red:        oklch(0.72 0.16 50);
+  --red-wash:   oklch(0.72 0.16 50 / 0.10);
 
   --display: 'Bricolage Grotesque', sans-serif;
   --ui: 'Hanken Grotesk', sans-serif;
@@ -86,7 +86,7 @@ body {
   overflow-x: clip;
 }
 
-::selection { background: var(--amber); color: oklch(0.18 0.02 78); }
+::selection { background: var(--accent); color: oklch(0.15 0.02 15); }
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
@@ -124,7 +124,7 @@ input, select, textarea { font: inherit; color: inherit; }
   font-family: var(--mono);
   font-size: 9.5px;
   letter-spacing: 0.22em;
-  color: var(--amber);
+  color: var(--accent);
   display: block;
   margin-top: 6px;
 }
@@ -144,8 +144,8 @@ input, select, textarea { font: inherit; color: inherit; }
   transition: color .15s ease, background .15s ease;
 }
 .rail-nav a:hover { color: var(--text); background: var(--bg-raise); }
-.rail-nav a.active { color: var(--amber); }
-.rail-nav a.active .nav-no { color: var(--amber); }
+.rail-nav a.active { color: var(--accent); }
+.rail-nav a.active .nav-no { color: var(--accent); }
 .nav-no {
   width: 30px; font-size: 10px; color: var(--text-faint);
 }
@@ -168,7 +168,7 @@ input, select, textarea { font: inherit; color: inherit; }
   flex: none;
 }
 .lamp-green { background: var(--green); box-shadow: 0 0 6px oklch(0.77 0.13 150 / 0.5); }
-.lamp-amber { background: var(--amber); box-shadow: 0 0 6px oklch(0.80 0.146 76 / 0.5); }
+.lamp-amber { background: var(--accent); box-shadow: 0 0 6px oklch(0.71 0.115 12 / 0.5); }
 .lamp-red   { background: var(--red); }
 .lamp-pulse { animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
@@ -191,7 +191,7 @@ input, select, textarea { font: inherit; color: inherit; }
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.24em;
-  color: var(--amber);
+  color: var(--accent);
   margin-bottom: var(--sp-sm);
 }
 .view-title {
@@ -230,8 +230,8 @@ input, select, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 .btn:hover { color: var(--text); border-color: var(--text-dim); }
-.btn-amber { color: var(--amber); border-color: var(--amber-dim); }
-.btn-amber:hover { color: oklch(0.18 0.02 78); background: var(--amber); border-color: var(--amber); }
+.btn-amber { color: var(--accent); border-color: var(--accent-dim); }
+.btn-amber:hover { color: oklch(0.15 0.02 15); background: var(--accent); border-color: var(--accent); }
 .btn-ghost { border-color: transparent; }
 .btn-ghost:hover { border-color: var(--line); }
 .btn-sm { padding: 4px 9px; font-size: 10px; }
@@ -248,7 +248,7 @@ input, select, textarea { font: inherit; color: inherit; }
   outline: none;
   transition: border-color .12s;
 }
-.input:focus, .select:focus { border-color: var(--amber-dim); }
+.input:focus, .select:focus { border-color: var(--accent-dim); }
 .input::placeholder { color: var(--text-faint); }
 .select { appearance: none; padding-right: 28px; }
 .select-wrap { position: relative; display: inline-flex; }
@@ -268,7 +268,7 @@ input, select, textarea { font: inherit; color: inherit; }
   padding: 2px 7px;
   white-space: nowrap;
 }
-.tag-amber { color: var(--amber); border-color: var(--amber-dim); }
+.tag-amber { color: var(--accent); border-color: var(--accent-dim); }
 
 /* ============================================================ TODAY */
 
@@ -307,8 +307,8 @@ input, select, textarea { font: inherit; color: inherit; }
   transition: background .12s;
   position: relative;
 }
-.hours-grid .hbar.on { background: var(--amber-dim); }
-.hours-grid .hbar.on:hover { background: var(--amber); }
+.hours-grid .hbar.on { background: var(--accent-dim); }
+.hours-grid .hbar.on:hover { background: var(--accent); }
 .hours-grid .hbar .tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   font-family: var(--mono); font-size: 10px; color: var(--text);
@@ -341,12 +341,12 @@ input, select, textarea { font: inherit; color: inherit; }
   display: flex; align-items: baseline; gap: var(--sp-md);
   font-family: var(--mono); font-size: 11px; color: var(--text-faint);
 }
-.sortie-time { color: var(--amber); letter-spacing: 0.05em; }
+.sortie-time { color: var(--accent); letter-spacing: 0.05em; }
 .sortie-title {
   font-family: var(--display); font-weight: 700; font-size: 21px;
   line-height: 1.2; margin: 8px 0 4px;
 }
-.sortie-title a:hover { color: var(--amber); }
+.sortie-title a:hover { color: var(--accent); }
 .sortie-first {
   color: var(--text-dim); font-size: 13.5px; max-width: 62ch;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -366,7 +366,7 @@ input, select, textarea { font: inherit; color: inherit; }
   display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 12px;
 }
 .pline:last-child { border-bottom: 1px solid var(--line-soft); }
-.pline .pt { font-family: var(--mono); font-size: 10.5px; color: var(--amber-dim); padding-top: 2px; }
+.pline .pt { font-family: var(--mono); font-size: 10.5px; color: var(--accent-dim); padding-top: 2px; }
 .pline .px { font-size: 13px; color: var(--text-dim); overflow-wrap: anywhere; }
 .pline .pp { font-family: var(--mono); font-size: 9.5px; color: var(--text-faint); margin-top: 3px; letter-spacing: 0.08em; }
 
@@ -395,7 +395,7 @@ input, select, textarea { font: inherit; color: inherit; }
   transition: color .12s, border-color .12s;
 }
 .cat-tabs button:hover { color: var(--text-dim); }
-.cat-tabs button.active { color: var(--amber); border-color: var(--amber-dim); }
+.cat-tabs button.active { color: var(--accent); border-color: var(--accent-dim); }
 .cat-tabs .cnt { color: var(--text-faint); margin-left: 6px; }
 
 /* target strip */
@@ -445,8 +445,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .skill-row:hover { background: linear-gradient(to right, transparent, var(--bg-raise) 8%, var(--bg-raise) 92%, transparent); }
 
 .pin-btn { color: var(--text-faint); font-size: 13px; width: 34px; height: 30px; }
-.pin-btn:hover { color: var(--amber); }
-.pin-btn.pinned { color: var(--amber); }
+.pin-btn:hover { color: var(--accent); }
+.pin-btn.pinned { color: var(--accent); }
 
 .skill-name {
   font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.02em;
@@ -499,7 +499,7 @@ input, select, textarea { font: inherit; color: inherit; }
   font-weight: 500; font-size: 14.5px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sess-row:hover .t { color: var(--amber); }
+.sess-row:hover .t { color: var(--accent); }
 .sess-title .f {
   display: block;
   font-size: 12px; color: var(--text-faint);
@@ -526,7 +526,7 @@ input, select, textarea { font: inherit; color: inherit; }
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
   color: var(--text-faint); display: inline-block; margin-bottom: var(--sp-lg);
 }
-.back-link:hover { color: var(--amber); }
+.back-link:hover { color: var(--accent); }
 
 .detail-meta {
   margin-top: var(--sp-md);
@@ -538,14 +538,14 @@ input, select, textarea { font: inherit; color: inherit; }
 .timeline { margin-top: var(--sp-xl); max-width: 860px; }
 
 .tl-user {
-  background: var(--amber-wash);
-  border: 1px solid oklch(0.80 0.146 76 / 0.25);
+  background: var(--accent-wash);
+  border: 1px solid oklch(0.71 0.115 12 / 0.30);
   padding: var(--sp-md) var(--sp-lg);
   margin: var(--sp-xl) 0 var(--sp-md);
 }
 .tl-user .who {
   font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.22em;
-  color: var(--amber); margin-bottom: 6px;
+  color: var(--accent); margin-bottom: 6px;
 }
 .tl-user .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; max-width: 75ch; }
 
@@ -574,13 +574,13 @@ input, select, textarea { font: inherit; color: inherit; }
   font-family: var(--mono); font-size: 11px;
   color: var(--text-faint); padding: 2.5px 0;
 }
-.tl-tool .tn { color: var(--amber-dim); flex: none; min-width: 88px; }
+.tl-tool .tn { color: var(--accent-dim); flex: none; min-width: 88px; }
 .tl-tool .td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-more {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
   color: var(--text-faint); padding: 4px 0; cursor: pointer;
 }
-.tl-more:hover { color: var(--amber); }
+.tl-more:hover { color: var(--accent); }
 
 .tl-turn {
   font-family: var(--mono); font-size: 9.5px; color: var(--text-faint);
@@ -594,7 +594,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .console {
   position: fixed;
   left: var(--rail-w); right: 0; bottom: 0;
-  background: oklch(0.13 0.008 78);
+  background: oklch(0.125 0.009 15);
   border-top: 1px solid var(--line);
   z-index: 50;
   transform: translateY(calc(100% - 41px));
@@ -634,8 +634,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .cl-launch .b { color: var(--text-faint); letter-spacing: 0.04em; }
 .cl-init .b { color: var(--text-faint); }
 .cl-text .b { color: var(--text-dim); }
-.cl-tool .g { color: var(--amber); }
-.cl-tool .tn { color: var(--amber); }
+.cl-tool .g { color: var(--accent); }
+.cl-tool .tn { color: var(--accent); }
 .cl-tool .b { color: var(--text-faint); }
 .cl-result .b { color: var(--green); }
 .cl-result.bad .b { color: var(--red); }
@@ -657,7 +657,7 @@ input, select, textarea { font: inherit; color: inherit; }
     border-right: none; border-top: 1px solid var(--line-soft);
     padding: 0 var(--sp-md);
     gap: var(--sp-md);
-    background: oklch(0.13 0.008 78);
+    background: oklch(0.125 0.009 15);
     z-index: 60;
   }
   .wordmark-h { font-size: 19px; }
