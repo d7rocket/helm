@@ -70,6 +70,7 @@
   --sp-xl: 40px; --sp-2xl: 64px; --sp-3xl: 96px;
 
   --rail-w: 232px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -212,9 +213,16 @@ input, select, textarea { font: inherit; color: inherit; }
 .view > *:nth-child(4) { animation-delay: .15s; }
 .view > *:nth-child(5) { animation-delay: .20s; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* row-level stagger — applied on first render only, delay set inline */
+.row-in { animation: rise .35s var(--ease-out) backwards; }
+
 @media (prefers-reduced-motion: reduce) {
   .view > * { animation: none; }
   .lamp-pulse { animation: none; }
+  .row-in { animation: none; }
+  .hours-grid .hbar { animation: none; }
+  .btn:active { transform: none; }
 }
 
 /* buttons */
@@ -230,6 +238,7 @@ input, select, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 .btn:hover { color: var(--text); border-color: var(--text-dim); }
+.btn:active { transform: scale(0.96); }
 .btn-amber { color: var(--accent); border-color: var(--accent-dim); }
 .btn-amber:hover { color: oklch(0.15 0.02 15); background: var(--accent); border-color: var(--accent); }
 .btn-ghost { border-color: transparent; }
@@ -288,6 +297,27 @@ input, select, textarea { font: inherit; color: inherit; }
 .day-ledger b { color: var(--text); font-weight: 400; }
 .day-ledger .sep { color: var(--text-faint); margin: 0 12px; }
 
+/* fortnight strip */
+.fortnight { display: flex; gap: 5px; margin-top: var(--sp-lg); }
+.fn-cell {
+  flex: 1; text-align: center; cursor: pointer;
+  padding: 7px 0 8px; border: 1px solid transparent;
+  transition: border-color .12s, background .12s;
+}
+.fn-cell:hover { background: var(--bg-raise); }
+.fn-cell.sel { border-color: var(--accent-dim); }
+.fn-bar { height: 26px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 7px; }
+.fn-bar i {
+  width: 14px; background: var(--line-soft); display: block;
+  transform-origin: bottom; animation: grow .55s var(--ease-out) backwards;
+}
+.fn-cell.on .fn-bar i { background: var(--accent-dim); }
+.fn-cell.sel .fn-bar i { background: var(--accent); }
+.fn-d { font-family: var(--mono); font-size: 8.5px; color: var(--text-faint); letter-spacing: .1em; display: block; }
+.fn-n { font-family: var(--mono); font-size: 10.5px; color: var(--text-dim); }
+.fn-cell.sel .fn-n { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .fn-bar i { animation: none; } }
+
 /* hour strip */
 .hours {
   margin-top: var(--sp-xl);
@@ -306,7 +336,10 @@ input, select, textarea { font: inherit; color: inherit; }
   min-height: 2px;
   transition: background .12s;
   position: relative;
+  transform-origin: bottom;
+  animation: grow .55s var(--ease-out) backwards;
 }
+@keyframes grow { from { transform: scaleY(0); } }
 .hours-grid .hbar.on { background: var(--accent-dim); }
 .hours-grid .hbar.on:hover { background: var(--accent); }
 .hours-grid .hbar .tip {

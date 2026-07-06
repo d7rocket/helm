@@ -77,6 +77,24 @@ async function saveConfig(patch) {
   });
 }
 
+// count-up for ledger numbers — 600ms, ease-out-quart, reduced-motion aware
+function countUp(el) {
+  const target = Number(el.dataset.count) || 0;
+  const fmt = el.dataset.fmt === 'tok' ? fmtTokens : (v) => String(v);
+  if (!target || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = fmt(target);
+    return;
+  }
+  const t0 = performance.now(), dur = 600;
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 4);
+    el.textContent = fmt(Math.round(target * e));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 // tiny markdown-lite for assistant text (input escaped FIRST)
 function md(s) {
   let h = esc(s);
@@ -109,7 +127,12 @@ const routes = [
   { re: /^#\/session\/([\w.-]+)\/([\w-]+)$/, view: viewSessionDetail, nav: 'sessions' },
 ];
 
+let todayPoll = null;
+let currentDay = null;
+
 async function route() {
+  clearInterval(todayPoll);
+  currentDay = null;
   const hash = location.hash || '#/today';
   for (const r of routes) {
     const m = hash.match(r.re);
@@ -137,18 +160,28 @@ async function viewToday(dateArg) {
   const isToday = date === localDayStr();
   const st = day.stats;
 
+  currentDay = date;
   const maxHour = Math.max(1, ...day.hourHist);
   const hourBars = day.hourHist.map((n, h) =>
-    `<div class="hbar ${n ? 'on' : ''}" style="height:${n ? Math.max(7, Math.round((n / maxHour) * 74)) : 2}px">
+    `<div class="hbar ${n ? 'on' : ''}" style="height:${n ? Math.max(7, Math.round((n / maxHour) * 74)) : 2}px;animation-delay:${h * 16}ms">
       ${n ? `<span class="tip">${String(h).padStart(2, '0')}:00 — ${n} prompt${n > 1 ? 's' : ''}</span>` : ''}
+    </div>`).join('');
+
+  const DOWL = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const maxRecent = Math.max(1, ...day.recent.map(r => r.count));
+  const fortnight = day.recent.map((r, i) => `
+    <div class="fn-cell ${r.count ? 'on' : ''} ${r.date === date ? 'sel' : ''}" data-day="${r.date}" title="${r.count} prompts">
+      <span class="fn-bar"><i style="height:${r.count ? Math.max(4, Math.round((r.count / maxRecent) * 26)) : 2}px;animation-delay:${i * 22}ms"></i></span>
+      <span class="fn-d">${DOWL[r.dow]}</span>
+      <span class="fn-n">${r.date.slice(8)}</span>
     </div>`).join('');
   const hourLabels = Array.from({ length: 24 }, (_, h) => `<span>${String(h).padStart(2, '0')}</span>`).join('');
 
   const sorties = day.sessions
     .slice()
     .sort((a, b2) => (a.start || '').localeCompare(b2.start || ''))
-    .map(s => `
-    <article class="sortie">
+    .map((s, i) => `
+    <article class="sortie row-in" style="animation-delay:${Math.min(i * 45, 320)}ms">
       <div class="sortie-head">
         <span class="sortie-time">${fmtTime(s.start)}–${fmtTime(s.end)}</span>
         <span>${esc(s.project)}</span>
@@ -164,8 +197,8 @@ async function viewToday(dateArg) {
       </div>
     </article>`).join('');
 
-  const pfeed = day.prompts.map(p => `
-    <div class="pline">
+  const pfeed = day.prompts.map((p, i) => `
+    <div class="pline row-in" style="animation-delay:${Math.min(i * 18, 350)}ms">
       <span class="pt">${fmtTime(p.t)}</span>
       <div>
         <div class="px">${esc(p.text.length > 220 ? p.text.slice(0, 219) + '…' : p.text)}</div>
@@ -188,12 +221,14 @@ async function viewToday(dateArg) {
     </div>
 
     <div class="day-ledger">
-      <span><b>${st.promptCount}</b> PROMPTS</span><span class="sep">·</span>
-      <span><b>${st.sessionCount}</b> SESSIONS</span><span class="sep">·</span>
-      <span><b>${st.projectCount}</b> PROJECTS</span><span class="sep">·</span>
-      <span><b>${fmtTokens(st.tokensOut)}</b> TOKENS OUT</span>
+      <span><b data-count="${st.promptCount}">0</b> PROMPTS</span><span class="sep">·</span>
+      <span><b data-count="${st.sessionCount}">0</b> SESSIONS</span><span class="sep">·</span>
+      <span><b data-count="${st.projectCount}">0</b> PROJECTS</span><span class="sep">·</span>
+      <span><b data-count="${st.tokensOut}" data-fmt="tok">0</b> TOKENS OUT</span>
       ${st.models.length ? `<span class="sep">·</span><span>${st.models.map(modelShort).map(esc).join(' + ')}</span>` : ''}
     </div>
+
+    <div class="fortnight">${fortnight}</div>
 
     <section class="hours">
       <div class="hours-title">ACTIVITY BY HOUR</div>
@@ -216,6 +251,22 @@ async function viewToday(dateArg) {
   $('#day-prev').onclick = () => location.hash = '#/today/' + shiftDay(date, -1);
   $('#day-next').onclick = () => location.hash = '#/today/' + shiftDay(date, 1);
   $('#day-today').onclick = () => location.hash = '#/today';
+  $$('.fn-cell').forEach(el => el.onclick = () => {
+    location.hash = el.dataset.day === localDayStr() ? '#/today' : '#/today/' + el.dataset.day;
+  });
+  $$('[data-count]').forEach(countUp);
+
+  // live view: re-render when today's numbers move
+  if (isToday) {
+    todayPoll = setInterval(async () => {
+      try {
+        const fresh = await api('/api/day?date=' + date);
+        if (fresh.stats.promptCount !== st.promptCount || fresh.stats.tokensOut !== st.tokensOut) {
+          viewToday(dateArg);
+        }
+      } catch {}
+    }, 60000);
+  }
 }
 
 // ---------------------------------------------------------------- LAUNCHPAD
@@ -290,8 +341,11 @@ function renderCatTabs() {
 }
 
 let openSkill = null;
+let skillsAnimated = false;
 
 function renderSkillList() {
+  const anim = !skillsAnimated;
+  skillsAnimated = true;
   const b = state.boot;
   const pins = new Set(b.config.pins);
   const q = state.launch.q.trim().toLowerCase();
@@ -305,10 +359,10 @@ function renderSkillList() {
   });
   list.sort((a, z) => (pins.has(z.name) - pins.has(a.name)) || a.name.localeCompare(z.name));
 
-  $('#skill-list').innerHTML = list.length ? list.map(s => {
+  $('#skill-list').innerHTML = list.length ? list.map((s, i) => {
     const open = openSkill === s.name;
     return `
-    <div class="skill-row ${open ? 'open' : ''}" data-skill="${esc(s.name)}">
+    <div class="skill-row ${open ? 'open' : ''} ${anim ? 'row-in' : ''}" ${anim ? `style="animation-delay:${Math.min(i * 14, 300)}ms"` : ''} data-skill="${esc(s.name)}">
       <button class="pin-btn ${pins.has(s.name) ? 'pinned' : ''}" data-pin="${esc(s.name)}" title="pin">${pins.has(s.name) ? '◆' : '◇'}</button>
       <div class="skill-name">/${esc(s.name)}</div>
       <div class="skill-desc">${esc(s.description || '—')}</div>
@@ -395,7 +449,10 @@ async function viewSessions() {
     <div class="sess-list" id="sess-list"></div>
   </div>`;
 
+  let sessAnimated = false;
   const render = () => {
+    const anim = !sessAnimated;
+    sessAnimated = true;
     const q = state.sessFilter.q.trim().toLowerCase();
     const proj = state.sessFilter.project;
     const list = sessions.filter(s => {
@@ -408,10 +465,10 @@ async function viewSessions() {
         <span>DATE</span><span>SESSION</span><span>PROJECT</span>
         <span class="r">DUR</span><span class="r">TOOLS</span><span class="r">TOK OUT</span>
       </div>` +
-      (list.map(s => {
+      (list.map((s, i) => {
         const d = s.start ? new Date(s.start) : null;
         return `
-        <a class="sess-row" href="#/session/${esc(s.slug)}/${esc(s.id)}">
+        <a class="sess-row ${anim ? 'row-in' : ''}" ${anim ? `style="animation-delay:${Math.min(i * 14, 300)}ms"` : ''} href="#/session/${esc(s.slug)}/${esc(s.id)}">
           <span class="sess-date"><b>${d ? `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : '—'}</b>${d ? fmtTime(s.start) : ''}</span>
           <span class="sess-title">
             <span class="t">${esc(s.title || s.firstPrompt || 'untitled session')}</span>
@@ -480,11 +537,25 @@ async function viewSessionDetail(slug, id) {
       <span class="sep">·</span>${fmtTokens((s.tokens || {}).out)} tok out
       ${s.gitBranch ? `<span class="sep">·</span>⎇ ${esc(s.gitBranch)}` : ''}
       ${s.models ? `<span class="sep">·</span>${Object.keys(s.models).map(modelShort).map(esc).join(', ')}` : ''}
+      ${s.cwd ? `<span class="sep">·</span><button class="btn btn-sm" id="resume-btn">RESUME ⧉</button>` : ''}
     </div>
     <div class="timeline">${html}
       ${detail.truncated ? `<div class="tl-turn">TRUNCATED · ${detail.truncated} MORE EVENTS</div>` : ''}
     </div>
   </div>`;
+
+  const resumeBtn = $('#resume-btn');
+  if (resumeBtn) resumeBtn.onclick = async () => {
+    resumeBtn.textContent = 'OPENING…';
+    try {
+      await api('/api/terminal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cwd: s.cwd, command: '--resume ' + id }),
+      });
+      resumeBtn.textContent = 'OPENED ⧉';
+    } catch (e) { resumeBtn.textContent = 'FAILED'; alert(e.message); }
+    setTimeout(() => { resumeBtn.textContent = 'RESUME ⧉'; }, 2500);
+  };
 
   $$('[data-more]').forEach(el => el.onclick = () => {
     const idx = Number(el.dataset.more);
@@ -508,13 +579,16 @@ $('#console-bar').onclick = (e) => {
   $('#console-toggle').textContent = consoleEl.classList.contains('open') ? '▼' : '▲';
 };
 
-function attachRun(id, prompt) {
+function attachRun(id, prompt, opts = {}) {
+  const { open = true } = opts;
   const run = { id, prompt, status: 'running', lines: [] };
   state.runs.unshift(run);
-  state.activeRun = id;
+  if (open || !state.activeRun) state.activeRun = id;
   consoleEl.hidden = false;
-  consoleEl.classList.add('open');
-  $('#console-toggle').textContent = '▼';
+  if (open) {
+    consoleEl.classList.add('open');
+    $('#console-toggle').textContent = '▼';
+  }
   renderConsole();
 
   const es = new EventSource('/api/run-stream?id=' + id);
@@ -574,6 +648,33 @@ function renderConsole(append = false) {
   if (!append || atBottom) consoleBody.scrollTop = consoleBody.scrollHeight;
 }
 
+// ---------------------------------------------------------------- keyboard
+
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === '1') location.hash = '#/today';
+  else if (e.key === '2') location.hash = '#/launch';
+  else if (e.key === '3') location.hash = '#/sessions';
+  else if (e.key === '/') {
+    const inp = $('.main .input');
+    if (inp) { e.preventDefault(); inp.focus(); }
+  } else if (e.key === 'ArrowLeft' && currentDay) {
+    location.hash = '#/today/' + shiftDay(currentDay, -1);
+  } else if (e.key === 'ArrowRight' && currentDay && currentDay !== localDayStr()) {
+    const next = shiftDay(currentDay, 1);
+    location.hash = next === localDayStr() ? '#/today' : '#/today/' + next;
+  }
+});
+
 // ---------------------------------------------------------------- init
 
-route();
+(async function init() {
+  // Reattach to runs the server still remembers (page reloads don't lose telemetry)
+  try {
+    const runs = await api('/api/runs');
+    for (const r of runs.slice(0, 8).reverse()) attachRun(r.id, r.prompt, { open: false });
+  } catch {}
+  route();
+})();
