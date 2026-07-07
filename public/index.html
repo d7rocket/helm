@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:;">
 <title>HELM · agentic ops</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23180f11'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23b25667' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a1013'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23e0324f' stroke-width='4'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/styles.css">
+<!-- set theme before first paint (external file keeps CSP script-src 'self') -->
+<script src="/theme-init.js"></script>
 </head>
 <body>
 
@@ -20,6 +22,9 @@
     <a href="#/launch"   data-nav="launch"><span class="nav-no">02</span>LAUNCHPAD</a>
     <a href="#/sessions" data-nav="sessions"><span class="nav-no">03</span>SESSIONS</a>
   </div>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light or dark theme">
+    <span class="tt-icon" id="tt-icon">☾</span><span class="tt-label" id="tt-label">DARK</span>
+  </button>
   <div class="rail-foot">
     <div class="lamp-row"><span class="lamp lamp-green"></span>127.0.0.1:7777</div>
     <div class="rail-clock" id="clock">00:00:00</div>

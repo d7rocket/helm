@@ -118,6 +118,23 @@ setInterval(() => {
   $('#clock').textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }, 1000);
 
+// ---------------------------------------------------------------- theme
+
+function paintThemeToggle() {
+  const light = document.documentElement.dataset.theme === 'light';
+  const icon = $('#tt-icon'), label = $('#tt-label');
+  if (!icon) return;
+  icon.textContent = light ? '☀' : '☾';        // shows the current theme
+  label.textContent = light ? 'LIGHT' : 'DARK';
+}
+$('#theme-toggle').onclick = () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('helm-theme', next); } catch {}
+  paintThemeToggle();
+};
+paintThemeToggle();
+
 // ---------------------------------------------------------------- router
 
 const routes = [
@@ -506,7 +523,7 @@ async function viewSessionDetail(slug, id) {
 
   const html = blocks.map((b, i) => {
     if (b.kind === 'user') return `
-      <div class="tl-user"><div class="who">DEVESH · ${b.t ? fmtTime(b.t) : ''}</div>
+      <div class="tl-user"><div class="who">YOU · ${b.t ? fmtTime(b.t) : ''}</div>
       <div class="txt">${esc(b.text)}</div></div>`;
     if (b.kind === 'assistant') return `
       <div class="tl-assistant"><div class="txt">${md(b.text)}</div></div>`;

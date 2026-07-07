@@ -40,27 +40,33 @@
 }
 
 :root {
-  /* surfaces — wine-black, tinted toward the burgundy hue */
-  --bg:        oklch(0.150 0.010 15);
-  --bg-raise:  oklch(0.180 0.012 15);
-  --bg-panel:  oklch(0.200 0.014 15);
-  --bg-hover:  oklch(0.230 0.016 15);
-  --line:      oklch(0.30 0.022 15);
-  --line-soft: oklch(0.245 0.017 15);
+  /* ---- DARK (default) — wine-black surfaces, vivid crimson signal ---- */
+  color-scheme: dark;
+
+  /* surfaces — deep wine-black, tinted toward the crimson hue */
+  --bg:        oklch(0.150 0.013 20);
+  --bg-sink:   oklch(0.125 0.011 20);   /* deeper than bg — console, mobile rail */
+  --bg-raise:  oklch(0.185 0.015 20);
+  --bg-panel:  oklch(0.208 0.017 20);
+  --bg-hover:  oklch(0.238 0.019 20);
+  --line:      oklch(0.32 0.030 20);
+  --line-soft: oklch(0.255 0.021 20);
 
   /* ink */
-  --text:       oklch(0.93 0.008 15);
-  --text-dim:   oklch(0.67 0.016 15);
-  --text-faint: oklch(0.49 0.015 15);
+  --text:       oklch(0.94 0.010 20);
+  --text-dim:   oklch(0.68 0.020 20);
+  --text-faint: oklch(0.50 0.018 20);
 
-  /* signal — burgundy accent; danger shifts to orange to stay distinct */
-  --accent:      oklch(0.71 0.115 12);
-  --accent-dim:  oklch(0.55 0.105 12);
-  --accent-wash: oklch(0.71 0.115 12 / 0.10);
-  --green:      oklch(0.77 0.13 150);
-  --green-wash: oklch(0.77 0.13 150 / 0.10);
-  --red:        oklch(0.72 0.16 50);
-  --red-wash:   oklch(0.72 0.16 50 / 0.10);
+  /* signal — vivid crimson/ruby accent; danger shifts to orange to stay distinct */
+  --accent:      oklch(0.635 0.205 22);
+  --accent-dim:  oklch(0.520 0.175 22);
+  --accent-wash: oklch(0.635 0.205 22 / 0.13);
+  --accent-line: oklch(0.635 0.205 22 / 0.32);
+  --on-accent:   oklch(0.16 0.02 20);   /* ink on an accent fill */
+  --green:      oklch(0.78 0.15 150);
+  --green-wash: oklch(0.78 0.15 150 / 0.10);
+  --red:        oklch(0.75 0.175 62);   /* danger = orange, kept clear of the ruby */
+  --red-wash:   oklch(0.75 0.175 62 / 0.10);
 
   --display: 'Bricolage Grotesque', sans-serif;
   --ui: 'Hanken Grotesk', sans-serif;
@@ -73,9 +79,35 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ---- LIGHT — warm paper, deep crimson signal ---- */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:        oklch(0.988 0.004 40);
+  --bg-sink:   oklch(0.955 0.007 40);
+  --bg-raise:  oklch(0.966 0.006 40);
+  --bg-panel:  oklch(0.944 0.009 40);
+  --bg-hover:  oklch(0.922 0.012 30);
+  --line:      oklch(0.835 0.016 30);
+  --line-soft: oklch(0.902 0.011 35);
+
+  --text:       oklch(0.235 0.024 22);
+  --text-dim:   oklch(0.435 0.026 22);
+  --text-faint: oklch(0.585 0.022 25);
+
+  --accent:      oklch(0.520 0.210 24);   /* deep crimson — readable on paper */
+  --accent-dim:  oklch(0.600 0.180 24);
+  --accent-wash: oklch(0.520 0.210 24 / 0.10);
+  --accent-line: oklch(0.520 0.210 24 / 0.28);
+  --on-accent:   oklch(0.985 0.008 40);   /* paper-white on an accent fill */
+  --green:      oklch(0.560 0.150 150);
+  --green-wash: oklch(0.560 0.150 150 / 0.12);
+  --red:        oklch(0.560 0.190 45);
+  --red-wash:   oklch(0.560 0.190 45 / 0.10);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { color-scheme: dark; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -87,7 +119,7 @@ body {
   overflow-x: clip;
 }
 
-::selection { background: var(--accent); color: oklch(0.15 0.02 15); }
+::selection { background: var(--accent); color: var(--on-accent); }
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
@@ -151,8 +183,23 @@ input, select, textarea { font: inherit; color: inherit; }
   width: 30px; font-size: 10px; color: var(--text-faint);
 }
 
-.rail-foot {
+/* theme toggle — owns the flex spring so it + the foot sit at the bottom */
+.theme-toggle {
   margin-top: auto;
+  margin-bottom: var(--sp-md);
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em;
+  color: var(--text-faint);
+  border: 1px solid var(--line-soft);
+  padding: 7px 11px;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--text-dim); background: var(--bg-raise); }
+.theme-toggle:active { transform: scale(0.97); }
+.tt-icon { font-size: 12.5px; line-height: 1; color: var(--accent); }
+
+.rail-foot {
   font-family: var(--mono);
   font-size: 10.5px;
   color: var(--text-faint);
@@ -168,8 +215,8 @@ input, select, textarea { font: inherit; color: inherit; }
   display: inline-block;
   flex: none;
 }
-.lamp-green { background: var(--green); box-shadow: 0 0 6px oklch(0.77 0.13 150 / 0.5); }
-.lamp-amber { background: var(--accent); box-shadow: 0 0 6px oklch(0.71 0.115 12 / 0.5); }
+.lamp-green { background: var(--green); box-shadow: 0 0 7px var(--green); }
+.lamp-amber { background: var(--accent); box-shadow: 0 0 7px var(--accent); }
 .lamp-red   { background: var(--red); }
 .lamp-pulse { animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
@@ -240,7 +287,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .btn:hover { color: var(--text); border-color: var(--text-dim); }
 .btn:active { transform: scale(0.96); }
 .btn-amber { color: var(--accent); border-color: var(--accent-dim); }
-.btn-amber:hover { color: oklch(0.15 0.02 15); background: var(--accent); border-color: var(--accent); }
+.btn-amber:hover { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
 .btn-ghost { border-color: transparent; }
 .btn-ghost:hover { border-color: var(--line); }
 .btn-sm { padding: 4px 9px; font-size: 10px; }
@@ -572,7 +619,7 @@ input, select, textarea { font: inherit; color: inherit; }
 
 .tl-user {
   background: var(--accent-wash);
-  border: 1px solid oklch(0.71 0.115 12 / 0.30);
+  border: 1px solid var(--accent-line);
   padding: var(--sp-md) var(--sp-lg);
   margin: var(--sp-xl) 0 var(--sp-md);
 }
@@ -627,7 +674,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .console {
   position: fixed;
   left: var(--rail-w); right: 0; bottom: 0;
-  background: oklch(0.125 0.009 15);
+  background: var(--bg-sink);
   border-top: 1px solid var(--line);
   z-index: 50;
   transform: translateY(calc(100% - 41px));
@@ -690,7 +737,7 @@ input, select, textarea { font: inherit; color: inherit; }
     border-right: none; border-top: 1px solid var(--line-soft);
     padding: 0 var(--sp-md);
     gap: var(--sp-md);
-    background: oklch(0.125 0.009 15);
+    background: var(--bg-sink);
     z-index: 60;
   }
   .wordmark-h { font-size: 19px; }
@@ -698,6 +745,8 @@ input, select, textarea { font: inherit; color: inherit; }
   .rail-nav { margin: 0 0 0 auto; flex-direction: row; gap: 0; }
   .rail-nav a { padding: 8px 7px; margin: 0; font-size: 10.5px; letter-spacing: 0.08em; }
   .nav-no { display: none; }
+  .theme-toggle { margin: 0; padding: 6px 8px; letter-spacing: 0.1em; }
+  .theme-toggle .tt-label { display: none; }
   .rail-foot { display: none; }
   .main { margin-left: 0; padding: var(--sp-lg) var(--sp-md) 180px; }
   .console { left: 0; bottom: 56px; }
