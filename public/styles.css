@@ -40,32 +40,38 @@
 }
 
 :root {
-  /* ---- DARK (default) — wine-black surfaces, vivid crimson signal ---- */
+  /* ---- DARK (default) — ink-black surfaces, one vivid signal hue ---- */
   color-scheme: dark;
 
-  /* surfaces — deep wine-black, tinted toward the crimson hue */
-  --bg:        oklch(0.150 0.013 20);
-  --bg-sink:   oklch(0.125 0.011 20);   /* deeper than bg — console, mobile rail */
-  --bg-raise:  oklch(0.185 0.015 20);
-  --bg-panel:  oklch(0.208 0.017 20);
-  --bg-hover:  oklch(0.238 0.019 20);
-  --line:      oklch(0.32 0.030 20);
-  --line-soft: oklch(0.255 0.021 20);
+  /* the whole scheme pivots on two vars: accent hue + chroma.
+     [data-accent] overrides these; surfaces borrow the same hue so it all agrees. */
+  --h: 22;            /* accent hue */
+  --ca: 0.205;        /* accent chroma */
+
+  /* surfaces — deep ink, faintly tinted toward the accent hue */
+  --bg:        oklch(0.150 0.013 var(--h));
+  --bg-sink:   oklch(0.125 0.011 var(--h));   /* deeper than bg — console, mobile rail */
+  --bg-raise:  oklch(0.185 0.015 var(--h));
+  --bg-panel:  oklch(0.208 0.017 var(--h));
+  --bg-hover:  oklch(0.238 0.019 var(--h));
+  --line:      oklch(0.32 0.030 var(--h));
+  --line-soft: oklch(0.255 0.021 var(--h));
 
   /* ink */
-  --text:       oklch(0.94 0.010 20);
-  --text-dim:   oklch(0.68 0.020 20);
-  --text-faint: oklch(0.50 0.018 20);
+  --text:       oklch(0.94 0.010 var(--h));
+  --text-dim:   oklch(0.68 0.020 var(--h));
+  --text-faint: oklch(0.50 0.018 var(--h));
 
-  /* signal — vivid crimson/ruby accent; danger shifts to orange to stay distinct */
-  --accent:      oklch(0.635 0.205 22);
-  --accent-dim:  oklch(0.520 0.175 22);
-  --accent-wash: oklch(0.635 0.205 22 / 0.13);
-  --accent-line: oklch(0.635 0.205 22 / 0.32);
-  --on-accent:   oklch(0.16 0.02 20);   /* ink on an accent fill */
+  /* signal — vivid accent; danger is a fixed orange, success a fixed green,
+     so they stay legible under every accent hue */
+  --accent:      oklch(0.635 var(--ca) var(--h));
+  --accent-dim:  oklch(0.520 calc(var(--ca) * 0.86) var(--h));
+  --accent-wash: oklch(0.635 var(--ca) var(--h) / 0.13);
+  --accent-line: oklch(0.635 var(--ca) var(--h) / 0.32);
+  --on-accent:   oklch(0.16 0.02 var(--h));   /* ink on an accent fill */
   --green:      oklch(0.78 0.15 150);
   --green-wash: oklch(0.78 0.15 150 / 0.10);
-  --red:        oklch(0.75 0.175 62);   /* danger = orange, kept clear of the ruby */
+  --red:        oklch(0.75 0.175 62);
   --red-wash:   oklch(0.75 0.175 62 / 0.10);
 
   --display: 'Bricolage Grotesque', sans-serif;
@@ -79,32 +85,40 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ---- LIGHT — warm paper, deep crimson signal ---- */
+/* ---- LIGHT — warm paper, deeper accent so it reads on a light ground ---- */
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --bg:        oklch(0.988 0.004 40);
-  --bg-sink:   oklch(0.955 0.007 40);
-  --bg-raise:  oklch(0.966 0.006 40);
-  --bg-panel:  oklch(0.944 0.009 40);
-  --bg-hover:  oklch(0.922 0.012 30);
-  --line:      oklch(0.835 0.016 30);
-  --line-soft: oklch(0.902 0.011 35);
+  --bg:        oklch(0.988 0.004 var(--h));
+  --bg-sink:   oklch(0.955 0.007 var(--h));
+  --bg-raise:  oklch(0.966 0.006 var(--h));
+  --bg-panel:  oklch(0.944 0.009 var(--h));
+  --bg-hover:  oklch(0.922 0.012 var(--h));
+  --line:      oklch(0.835 0.016 var(--h));
+  --line-soft: oklch(0.902 0.011 var(--h));
 
-  --text:       oklch(0.235 0.024 22);
-  --text-dim:   oklch(0.435 0.026 22);
-  --text-faint: oklch(0.585 0.022 25);
+  --text:       oklch(0.235 0.024 var(--h));
+  --text-dim:   oklch(0.435 0.026 var(--h));
+  --text-faint: oklch(0.585 0.022 var(--h));
 
-  --accent:      oklch(0.520 0.210 24);   /* deep crimson — readable on paper */
-  --accent-dim:  oklch(0.600 0.180 24);
-  --accent-wash: oklch(0.520 0.210 24 / 0.10);
-  --accent-line: oklch(0.520 0.210 24 / 0.28);
-  --on-accent:   oklch(0.985 0.008 40);   /* paper-white on an accent fill */
+  --accent:      oklch(0.520 var(--ca) var(--h));
+  --accent-dim:  oklch(0.600 calc(var(--ca) * 0.86) var(--h));
+  --accent-wash: oklch(0.520 var(--ca) var(--h) / 0.10);
+  --accent-line: oklch(0.520 var(--ca) var(--h) / 0.28);
+  --on-accent:   oklch(0.985 0.008 var(--h));
   --green:      oklch(0.560 0.150 150);
   --green-wash: oklch(0.560 0.150 150 / 0.12);
   --red:        oklch(0.560 0.190 45);
   --red-wash:   oklch(0.560 0.190 45 / 0.10);
 }
+
+/* ---- accent schemes — each just sets the hue + chroma ---- */
+:root[data-accent="crimson"] { --h: 22;  --ca: 0.205; }
+:root[data-accent="magenta"] { --h: 345; --ca: 0.190; }
+:root[data-accent="violet"]  { --h: 300; --ca: 0.200; }
+:root[data-accent="cobalt"]  { --h: 255; --ca: 0.165; }
+:root[data-accent="teal"]    { --h: 195; --ca: 0.130; }
+:root[data-accent="emerald"] { --h: 152; --ca: 0.165; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -198,6 +212,17 @@ input, select, textarea { font: inherit; color: inherit; }
 .theme-toggle:hover { color: var(--text); border-color: var(--text-dim); background: var(--bg-raise); }
 .theme-toggle:active { transform: scale(0.97); }
 .tt-icon { font-size: 12.5px; line-height: 1; color: var(--accent); }
+
+/* accent-color picker — a row of swatches */
+.accent-picker { display: flex; gap: 7px; margin-bottom: var(--sp-md); align-self: flex-start; }
+.swatch {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--sw);
+  box-shadow: 0 0 0 1px var(--line);
+  transition: transform .12s, box-shadow .12s;
+}
+.swatch:hover { transform: scale(1.18); }
+.swatch.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--sw); }
 
 .rail-foot {
   font-family: var(--mono);
@@ -747,6 +772,7 @@ input, select, textarea { font: inherit; color: inherit; }
   .nav-no { display: none; }
   .theme-toggle { margin: 0; padding: 6px 8px; letter-spacing: 0.1em; }
   .theme-toggle .tt-label { display: none; }
+  .accent-picker { display: none; }
   .rail-foot { display: none; }
   .main { margin-left: 0; padding: var(--sp-lg) var(--sp-md) 180px; }
   .console { left: 0; bottom: 56px; }

@@ -135,6 +135,30 @@ $('#theme-toggle').onclick = () => {
 };
 paintThemeToggle();
 
+// accent-color picker — [id, label, preview swatch color]
+const ACCENTS = [
+  ['crimson', 'Crimson', 'oklch(0.63 0.205 22)'],
+  ['magenta', 'Magenta', 'oklch(0.63 0.19 345)'],
+  ['violet',  'Violet',  'oklch(0.62 0.20 300)'],
+  ['cobalt',  'Cobalt',  'oklch(0.62 0.165 255)'],
+  ['teal',    'Teal',    'oklch(0.70 0.13 195)'],
+  ['emerald', 'Emerald', 'oklch(0.70 0.165 152)'],
+];
+function paintAccentPicker() {
+  const el = $('#accent-picker');
+  if (!el) return;
+  const cur = document.documentElement.dataset.accent || 'crimson';
+  el.innerHTML = ACCENTS.map(([id, label, col]) =>
+    `<button class="swatch ${cur === id ? 'on' : ''}" data-set-accent="${id}" style="--sw:${col}" title="${label}" aria-label="${label} accent"></button>`).join('');
+  $$('#accent-picker [data-set-accent]').forEach(b => b.onclick = () => {
+    const id = b.dataset.setAccent;
+    document.documentElement.dataset.accent = id;
+    try { localStorage.setItem('helm-accent', id); } catch {}
+    paintAccentPicker();
+  });
+}
+paintAccentPicker();
+
 // ---------------------------------------------------------------- router
 
 const routes = [

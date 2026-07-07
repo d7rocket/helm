@@ -4,6 +4,14 @@
 
 HELM sits on top of Claude Code's own data (`~/.claude`) and turns it into an operations room. It runs entirely on your machine, binds to localhost only, and has zero dependencies — just Node and the `claude` CLI you already have.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/helm-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/helm-light.png">
+  <img alt="HELM — the Today view: daily report, activity by hour, and the flight log" src="docs/helm-dark.png">
+</picture>
+
+<sub>Ships with dark and light themes — the sidebar toggles them, and the shot above follows your GitHub theme.</sub>
+
 ## What it is
 
 | View | What it shows |
@@ -13,7 +21,7 @@ HELM sits on top of Claude Code's own data (`~/.claude`) and turns it into an op
 | **Sessions** | Every transcript across every project — searchable ledger with titles, durations, tool calls, and tokens. Click through to the full conversation timeline |
 | **Console** | Live telemetry for headless runs — tool calls tick in as the agent works, with cost and duration on landing |
 
-Dark and light themes ship together (top of the sidebar toggles them; your choice is remembered, and it follows your OS preference on first run).
+Dark and light themes ship together, plus **six accent colors** (crimson, magenta, violet, cobalt, teal, emerald) — the sidebar toggles the theme and swatches pick the accent. Your choices are remembered, and the theme follows your OS preference on first run.
 
 ## Requirements
 
@@ -22,7 +30,16 @@ Dark and light themes ship together (top of the sidebar toggles them; your choic
 
 Works on **macOS, Linux, and Windows**.
 
-## Quick start
+## Install
+
+Clone the repo — there's nothing to build and nothing to `npm install`:
+
+```sh
+git clone https://github.com/d7rocket/helm.git
+cd helm
+```
+
+## Run
 
 **macOS / Linux**
 
@@ -30,20 +47,26 @@ Works on **macOS, Linux, and Windows**.
 ./helm.sh
 ```
 
-**Windows**
+**Windows** — double-click `helm.cmd`, or:
 
 ```
-double-click helm.cmd
+helm.cmd
 ```
 
-**Any platform**
+**Any platform** (opens nothing, just serves):
 
 ```sh
 node server.js
 # then open http://127.0.0.1:7777
 ```
 
-Set `HELM_PORT` to bind a different port.
+One-liner to clone and launch:
+
+```sh
+git clone https://github.com/d7rocket/helm.git && cd helm && node server.js
+```
+
+Set `HELM_PORT` to bind a different port (e.g. `HELM_PORT=8080 node server.js`).
 
 ## Stack
 
