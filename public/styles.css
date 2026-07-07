@@ -1160,7 +1160,7 @@ a.sh-snip:hover { background: var(--accent-wash); }
   gap: var(--sp-xl);
   align-items: start;
 }
-.config-nav { display: flex; flex-direction: column; max-height: 72vh; overflow-y: auto; padding-right: 4px; }
+.config-nav { display: flex; flex-direction: column; max-height: 72vh; overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
 .config-group {
   font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.2em;
   color: var(--text-faint); margin: var(--sp-md) 0 6px;
@@ -1172,6 +1172,7 @@ a.sh-snip:hover { background: var(--accent-wash); }
   padding: 7px 10px; margin: 0 -10px;
   border: 1px solid transparent;
   transition: background .12s, border-color .12s;
+  min-width: 0; max-width: 100%;
 }
 .config-file:hover { background: var(--bg-raise); }
 .config-file.sel { border-color: var(--accent-dim); color: var(--accent); }
@@ -1206,7 +1207,6 @@ a.sh-snip:hover { background: var(--accent-wash); }
   color: var(--text);
   outline: none;
   resize: vertical;
-  white-space: pre; overflow-wrap: normal; overflow-x: auto;
   tab-size: 2;
 }
 .config-text:focus { border-color: var(--accent-dim); }
