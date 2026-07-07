@@ -1,0 +1,6 @@
+# Keep line endings sane across machines.
+* text=auto
+*.sh    text eol=lf
+helm.sh text eol=lf
+*.cmd   text eol=crlf
+*.woff2 binary
