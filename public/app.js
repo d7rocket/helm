@@ -700,7 +700,12 @@ async function openSkillSheet(name) {
     box.hidden = false; box.textContent = 'reading…';
     try {
       const src = await api('/api/skill/source?name=' + encodeURIComponent(name));
-      box.innerHTML = `<div class="sheet-src-path">${esc(src.path)}</div><pre>${esc(src.body)}${src.truncated ? '\n…(truncated)' : ''}</pre>`;
+      // split frontmatter (kept raw) from the body (rendered as markdown)
+      const fm = src.body.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
+      const body = fm ? src.body.slice(fm[0].length) : src.body;
+      box.innerHTML = `<div class="sheet-src-path">${esc(src.path)}</div>`
+        + (fm ? `<pre class="sheet-src-fm">${esc(fm[0].trim())}</pre>` : '')
+        + `<div class="sheet-src-md">${md(body)}${src.truncated ? '<p>…(truncated)</p>' : ''}</div>`;
     } catch (e) { box.textContent = 'could not read source: ' + e.message; }
   };
   $('#sheet-args').focus();

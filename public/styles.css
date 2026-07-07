@@ -654,6 +654,26 @@ input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--line-soft); padding: 12px;
   max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word;
 }
+.sheet-src-fm { max-height: 120px; margin-bottom: 8px; opacity: 0.75; }
+.sheet-src-md {
+  font-size: 12.5px; line-height: 1.55; color: var(--text-dim);
+  border: 1px solid var(--line-soft); padding: 12px 14px;
+  max-height: 340px; overflow: auto;
+}
+.sheet-src-md p { margin: 7px 0; }
+.sheet-src-md h1, .sheet-src-md h2, .sheet-src-md h3 {
+  font-family: var(--display); font-weight: 700; color: var(--text);
+  font-size: 13.5px; margin: 12px 0 5px;
+}
+.sheet-src-md ul { margin: 7px 0 7px 18px; }
+.sheet-src-md code { font-family: var(--mono); font-size: 0.85em; background: var(--bg-sink); padding: 1px 4px; }
+.sheet-src-md pre {
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.55;
+  background: var(--bg-sink); border: 1px solid var(--line-soft);
+  padding: 10px 12px; margin: 8px 0; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  max-height: none;
+}
+.sheet-src-md strong { color: var(--text); font-weight: 500; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (max-width: 860px) {
