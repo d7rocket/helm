@@ -17,9 +17,14 @@ HELM sits on top of Claude Code's own data (`~/.claude`) and turns it into an op
 | View | What it shows |
 |------|---------------|
 | **Today** | A date-navigable daily report — prompts, sessions, projects, tokens out, activity by hour, a flight log of every sortie, and the raw prompt feed |
-| **Launchpad** | Every skill and command you have installed, as one-click buttons. Pick a target project, arm YOLO or keep permissions, hit RUN for a headless streamed run or TERM to open a real terminal |
+| **Launchpad** | Every skill and command you have installed, as one-click buttons. Pick a target project and model, arm YOLO or keep permissions. Click any skill for a detail panel; RUN it headless or open a TERM. Enable/disable skills (moves them off Claude Code's path, reversibly — including bulk toggles), or compose a free-form run |
 | **Sessions** | Every transcript across every project — searchable ledger with titles, durations, tool calls, and tokens. Click through to the full conversation timeline |
+| **Search** | Full-text search across every transcript — find anything you or Claude ever wrote, with highlighted snippets that jump straight to the session |
+| **Usage** | Tokens and estimated spend, all-time — a 30-day output chart plus breakdowns by model and by project |
+| **Active** | Running now — the runs HELM launched, plus any session touched in the last 15 minutes across your machine |
 | **Console** | Live telemetry for headless runs — tool calls tick in as the agent works, with cost and duration on landing |
+
+**RUN vs TERM.** A headless RUN (`claude -p`) can't answer a skill's questions, so HELM makes it the primary action only for autonomous, one-shot skills (`ship`, `cover`, audits). For interactive skills (`voice`, the `gsd-*` chain) TERM is primary — it opens a real terminal you can drive.
 
 Dark and light themes ship together, plus **six accent colors** (crimson, magenta, violet, cobalt, teal, emerald) — the sidebar toggles the theme and swatches pick the accent. Your choices are remembered, and the theme follows your OS preference on first run.
 

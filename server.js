@@ -21,7 +21,7 @@ const CONFIG_FILE = path.join(__dirname, 'data', 'helm.config.json');
 
 function readConfig() {
   try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); }
-  catch { return { pins: [], defaultProject: '', dangerous: true }; }
+  catch { return { pins: [], defaultProject: '', dangerous: true, model: '' }; }
 }
 function writeConfig(cfg) {
   fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
@@ -119,14 +119,42 @@ const routes = {
     sendJSON(res, 200, detail);
   },
 
+  'GET /api/search': async (req, res, q) => {
+    sendJSON(res, 200, await store.searchTranscripts(q.q || ''));
+  },
+
+  'GET /api/usage': async (req, res, q) => {
+    const days = Math.min(120, Math.max(7, Number(q.days) || 30));
+    sendJSON(res, 200, await store.getUsage(days));
+  },
+
+  'GET /api/active': async (req, res) => {
+    const runs = runner.listRuns();
+    const sessions = await store.getRecentlyActive(15 * 60 * 1000, Date.now());
+    sendJSON(res, 200, { runs, sessions });
+  },
+
   'PUT /api/config': async (req, res) => {
     const body = await readBody(req);
     const cfg = readConfig();
     if (Array.isArray(body.pins)) cfg.pins = body.pins.filter(p => typeof p === 'string').slice(0, 200);
     if (typeof body.defaultProject === 'string') cfg.defaultProject = body.defaultProject;
     if (typeof body.dangerous === 'boolean') cfg.dangerous = body.dangerous;
+    if (typeof body.model === 'string') cfg.model = body.model;
     writeConfig(cfg);
     sendJSON(res, 200, cfg);
+  },
+
+  'POST /api/skill/toggle': async (req, res) => {
+    const body = await readBody(req);
+    const result = store.toggleSkill(String(body.name || ''), !!body.disable);
+    sendJSON(res, result.error ? 400 : 200, result);
+  },
+
+  'GET /api/skill/source': async (req, res, q) => {
+    const src = store.getSkillSource(String(q.name || ''));
+    if (!src) return sendJSON(res, 404, { error: 'not found' });
+    sendJSON(res, 200, src);
   },
 
   'POST /api/run': async (req, res) => {
@@ -135,6 +163,7 @@ const routes = {
       prompt: String(body.prompt || '').slice(0, 4000),
       cwd: String(body.cwd || ''),
       dangerous: !!body.dangerous,
+      model: String(body.model || ''),
     });
     sendJSON(res, result.error ? 400 : 200, result);
   },
@@ -153,6 +182,7 @@ const routes = {
     const result = runner.openTerminal({
       cwd: String(body.cwd || ''),
       command: body.command ? String(body.command).slice(0, 500) : null,
+      model: String(body.model || ''),
     });
     sendJSON(res, result.error ? 400 : 200, result);
   },

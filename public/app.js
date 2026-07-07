@@ -166,6 +166,9 @@ const routes = [
   { re: /^#\/launch$/, view: viewLaunch, nav: 'launch' },
   { re: /^#\/sessions$/, view: viewSessions, nav: 'sessions' },
   { re: /^#\/session\/([\w.-]+)\/([\w-]+)$/, view: viewSessionDetail, nav: 'sessions' },
+  { re: /^#\/search$/, view: viewSearch, nav: 'search' },
+  { re: /^#\/usage$/, view: viewUsage, nav: 'usage' },
+  { re: /^#\/active$/, view: viewActive, nav: 'active' },
 ];
 
 let todayPoll = null;
@@ -173,7 +176,9 @@ let currentDay = null;
 
 async function route() {
   clearInterval(todayPoll);
+  clearInterval(activePoll);
   currentDay = null;
+  closeSheet();
   const hash = location.hash || '#/today';
   for (const r of routes) {
     const m = hash.match(r.re);
@@ -314,12 +319,29 @@ async function viewToday(dateArg) {
 
 const CATS = [
   ['all', 'ALL'], ['pinned', 'PINNED'], ['personal', 'PERSONAL'], ['design', 'DESIGN'],
-  ['gsd', 'GSD'], ['pbi', 'POWER BI'], ['toolkit', 'TOOLKIT'],
+  ['gsd', 'GSD'], ['pbi', 'POWER BI'], ['toolkit', 'TOOLKIT'], ['off', 'DISABLED'],
 ];
+
+// Model options for the target strip / per-launch override.
+const MODELS = [['', 'DEFAULT'], ['opus', 'OPUS'], ['sonnet', 'SONNET'], ['haiku', 'HAIKU']];
+
+// Skills where a headless RUN is genuinely useful — autonomous, one-shot, no
+// mid-run questions. For everything else TERM is the primary action, because a
+// headless `claude -p` can't answer the checkpoints those skills depend on.
+const AUTONOMOUS = new Set([
+  'ship', 'cover', 'readme-gen', 'humanizer', 'audit', 'polish', 'optimize', 'distill',
+  'security-review', 'code-review', 'dataviz', 'canvas-design',
+  'gsd-autonomous', 'gsd-fast', 'gsd-quick', 'gsd-code-review', 'gsd-docs-update',
+  'gsd-map-codebase', 'gsd-stats', 'gsd-extract-learnings', 'gsd-milestone-summary',
+  'pbi-audit', 'pbi-format', 'pbi-format-batch', 'pbi-docs', 'pbi-changelog',
+  'pbi-comment-batch', 'pbi-diff', 'pbi-extract',
+]);
+const isAutonomous = (name) => AUTONOMOUS.has(name);
 
 async function viewLaunch() {
   const b = await boot();
   const cfg = b.config;
+  if (cfg.model === undefined) cfg.model = '';
 
   main.innerHTML = `
   <div class="view">
@@ -332,12 +354,17 @@ async function viewLaunch() {
 
     <div class="launch-controls">
       <input class="input" id="skill-q" placeholder="search ${b.skills.length} skills…" value="${esc(state.launch.q)}" autocomplete="off">
+      <button class="btn btn-sm" id="freeform-btn">＋ FREE-FORM</button>
+      <button class="btn btn-ghost btn-sm" id="bulk-toggle" hidden></button>
     </div>
     <div class="cat-tabs" id="cat-tabs"></div>
 
     <div class="target-strip">
       <span>TARGET</span>
       <span class="select-wrap"><select class="select" id="target-proj"></select></span>
+      <span class="select-wrap model-wrap"><select class="select" id="target-model" title="Model for launches">
+        ${MODELS.map(([v, l]) => `<option value="${v}" ${cfg.model === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select></span>
       <label class="yolo ${cfg.dangerous ? 'on' : ''}" id="yolo">
         <span class="sw"></span><span id="yolo-label">${cfg.dangerous ? 'YOLO ARMED' : 'PERMISSIONS ON'}</span>
       </label>
@@ -352,6 +379,9 @@ async function viewLaunch() {
   if (!cfg.defaultProject && b.projects[0]) cfg.defaultProject = b.projects[0].path;
   sel.onchange = () => saveConfig({ defaultProject: sel.value });
 
+  const mdl = $('#target-model');
+  mdl.onchange = () => saveConfig({ model: mdl.value });
+
   const yolo = $('#yolo');
   yolo.onclick = async (e) => {
     e.preventDefault();
@@ -361,6 +391,8 @@ async function viewLaunch() {
     await saveConfig({ dangerous: next });
   };
 
+  $('#freeform-btn').onclick = openComposer;
+
   const q = $('#skill-q');
   q.oninput = () => { state.launch.q = q.value; renderSkillList(); };
   renderCatTabs();
@@ -368,21 +400,109 @@ async function viewLaunch() {
   q.focus();
 }
 
+// Free-form run/terminal — any prompt, not tied to a skill. Reuses the sheet.
+function openComposer() {
+  const sh = sheetEl(), bd = backdropEl();
+  const cfg = state.boot.config;
+  sh.innerHTML = `
+    <header class="sheet-head">
+      <div>
+        <div class="sheet-kind">FREE-FORM · ${cfg.dangerous ? 'YOLO' : 'PERMISSIONS ON'}</div>
+        <h2 class="sheet-name">compose a run</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="sheet-close">✕</button>
+    </header>
+    <div class="sheet-body">
+      <label class="sheet-label">PROMPT <span>sent to claude in the target project</span></label>
+      <textarea class="input" id="cmp-prompt" rows="6" placeholder="e.g. summarise what changed on this branch and draft a commit message" autocomplete="off"></textarea>
+      <label class="sheet-label">MODEL</label>
+      <span class="select-wrap"><select class="select" id="cmp-model">
+        ${MODELS.map(([v, l]) => `<option value="${v}" ${targetModel() === v ? 'selected' : ''}>${l === 'DEFAULT' ? 'DEFAULT (strip)' : l}</option>`).join('')}
+      </select></span>
+      <div class="sheet-actions">
+        <button class="btn" id="cmp-term">OPEN TERMINAL ⧉</button>
+        <button class="btn btn-amber" id="cmp-run">RUN ▸</button>
+      </div>
+      <div class="sheet-hint">RUN streams a headless one-shot into the console. OPEN TERMINAL drops you into an interactive claude in the target project — type the prompt yourself.</div>
+    </div>`;
+  bd.hidden = false; sh.hidden = false;
+  requestAnimationFrame(() => sh.classList.add('open'));
+
+  const prompt = () => $('#cmp-prompt').value.trim();
+  const model = () => { const v = $('#cmp-model').value; return v || targetModel(); };
+  $('#sheet-close').onclick = closeSheet;
+  bd.onclick = closeSheet;
+  $('#cmp-run').onclick = async () => {
+    if (!prompt()) return $('#cmp-prompt').focus();
+    const cwd = $('#target-proj').value;
+    try {
+      const { id } = await api('/api/run', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt(), cwd, dangerous: state.boot.config.dangerous, model: model() }),
+      });
+      closeSheet(); attachRun(id, prompt());
+    } catch (e) { alert(e.message); }
+  };
+  $('#cmp-term').onclick = async () => {
+    const cwd = $('#target-proj').value;
+    try {
+      await api('/api/terminal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cwd, command: null, model: model() }),
+      });
+      closeSheet();
+    } catch (e) { alert(e.message); }
+  };
+  $('#cmp-prompt').focus();
+}
+
+// The currently-targeted model (per-launch override falls back to the strip).
+function targetModel() { return ($('#target-model') || {}).value || ''; }
+
+async function setSkillDisabled(name, disable) {
+  const r = await api('/api/skill/toggle', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, disable }),
+  });
+  const item = state.boot.skills.find(s => s.name === name);
+  if (item) item.disabled = !!r.disabled;
+  return r;
+}
+
 function renderCatTabs() {
   const b = state.boot;
   const pins = new Set(b.config.pins);
-  const counts = { all: b.skills.length, pinned: pins.size };
-  for (const s of b.skills) counts[s.category] = (counts[s.category] || 0) + 1;
+  const counts = { all: b.skills.filter(s => !s.disabled).length, pinned: 0, off: 0 };
+  for (const s of b.skills) {
+    if (s.disabled) { counts.off++; continue; }
+    if (pins.has(s.name)) counts.pinned++;
+    counts[s.category] = (counts[s.category] || 0) + 1;
+  }
   $('#cat-tabs').innerHTML = CATS.map(([id, label]) =>
-    `<button data-cat="${id}" class="${state.launch.cat === id ? 'active' : ''}">${label}<span class="cnt">${counts[id] || 0}</span></button>`).join('');
+    `<button data-cat="${id}" class="${state.launch.cat === id ? 'active' : ''} ${id === 'off' ? 'tab-off' : ''}">${label}<span class="cnt">${counts[id] || 0}</span></button>`).join('');
   $$('#cat-tabs button').forEach(btn => btn.onclick = () => {
     state.launch.cat = btn.dataset.cat;
     renderCatTabs(); renderSkillList();
   });
 }
 
-let openSkill = null;
 let skillsAnimated = false;
+
+// The skills currently visible under the active filter — used by list + bulk toggle.
+function filteredSkills() {
+  const b = state.boot;
+  const pins = new Set(b.config.pins);
+  const q = state.launch.q.trim().toLowerCase();
+  const cat = state.launch.cat;
+  return b.skills.filter(s => {
+    if (cat === 'off') { if (!s.disabled) return false; }
+    else if (s.disabled) return false;               // hide disabled outside the DISABLED tab
+    if (cat === 'pinned' && !pins.has(s.name)) return false;
+    if (cat !== 'all' && cat !== 'pinned' && cat !== 'off' && s.category !== cat) return false;
+    if (q && !(s.name + ' ' + s.description).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, z) => (pins.has(z.name) - pins.has(a.name)) || a.name.localeCompare(z.name));
+}
 
 function renderSkillList() {
   const anim = !skillsAnimated;
@@ -391,33 +511,37 @@ function renderSkillList() {
   const pins = new Set(b.config.pins);
   const q = state.launch.q.trim().toLowerCase();
   const cat = state.launch.cat;
+  const list = filteredSkills();
 
-  let list = b.skills.filter(s => {
-    if (cat === 'pinned' && !pins.has(s.name)) return false;
-    if (cat !== 'all' && cat !== 'pinned' && s.category !== cat) return false;
-    if (q && !(s.name + ' ' + s.description).toLowerCase().includes(q)) return false;
-    return true;
-  });
-  list.sort((a, z) => (pins.has(z.name) - pins.has(a.name)) || a.name.localeCompare(z.name));
+  // Bulk enable/disable for the current view — the "toggle all pbi" workflow.
+  const bulk = $('#bulk-toggle');
+  const bulkable = list.filter(s => s.kind);
+  if (bulk) {
+    if ((cat !== 'all' && cat !== 'pinned') && bulkable.length) {
+      const disabling = cat !== 'off';
+      bulk.hidden = false;
+      bulk.textContent = `${disabling ? 'DISABLE' : 'ENABLE'} ALL ${bulkable.length}`;
+      bulk.onclick = () => bulkToggle(bulkable.map(s => s.name), disabling);
+    } else { bulk.hidden = true; }
+  }
 
   $('#skill-list').innerHTML = list.length ? list.map((s, i) => {
-    const open = openSkill === s.name;
+    const primaryRun = isAutonomous(s.name);
+    const runBtn = `<button class="btn btn-sm ${primaryRun ? 'btn-amber' : 'btn-ghost'}" data-run="${esc(s.name)}" title="headless run — streamed to the console${primaryRun ? '' : '. best for autonomous skills; this one may expect input'}">RUN ▸</button>`;
+    const termBtn = `<button class="btn btn-sm ${primaryRun ? 'btn-ghost' : 'btn-amber'}" data-term="${esc(s.name)}" title="open an interactive terminal">TERM ⧉</button>`;
     return `
-    <div class="skill-row ${open ? 'open' : ''} ${anim ? 'row-in' : ''}" ${anim ? `style="animation-delay:${Math.min(i * 14, 300)}ms"` : ''} data-skill="${esc(s.name)}">
+    <div class="skill-row ${s.disabled ? 'disabled' : ''} ${anim ? 'row-in' : ''}" ${anim ? `style="animation-delay:${Math.min(i * 14, 300)}ms"` : ''} data-skill="${esc(s.name)}">
       <button class="pin-btn ${pins.has(s.name) ? 'pinned' : ''}" data-pin="${esc(s.name)}" title="pin">${pins.has(s.name) ? '◆' : '◇'}</button>
-      <div class="skill-name">/${esc(s.name)}</div>
+      <div class="skill-name">/${esc(s.name)}${s.kind === 'command' ? '<span class="kind-tag">cmd</span>' : ''}</div>
       <div class="skill-desc">${esc(s.description || '—')}</div>
       <div class="skill-acts">
-        <button class="btn btn-sm btn-amber" data-run="${esc(s.name)}">RUN ▸</button>
-        <button class="btn btn-sm" data-term="${esc(s.name)}">TERM ⧉</button>
+        ${s.disabled
+          ? `<button class="btn btn-sm btn-amber" data-enable="${esc(s.name)}">ENABLE</button>`
+          : `${primaryRun ? runBtn + termBtn : termBtn + runBtn}
+             <button class="power-btn" data-disable="${esc(s.name)}" title="disable — move off Claude Code's path">⏻</button>`}
       </div>
-      ${open ? `
-      <div class="skill-expand">
-        <input class="input" id="skill-args" placeholder="arguments (optional) — appended to /${esc(s.name)}" autocomplete="off">
-        <button class="btn btn-amber" data-runargs="${esc(s.name)}">LAUNCH ▸</button>
-      </div>` : ''}
     </div>`;
-  }).join('') : `<div class="empty">NO MATCHES.<br><b>Nothing on the pad for “${esc(q)}”.</b></div>`;
+  }).join('') : `<div class="empty">NO MATCHES.<br><b>Nothing on the pad for “${esc(q || cat)}”.</b></div>`;
 
   $$('#skill-list [data-pin]').forEach(el => el.onclick = async (e) => {
     e.stopPropagation();
@@ -431,38 +555,155 @@ function renderSkillList() {
     e.stopPropagation();
     launchSkill(el.dataset.run, '');
   });
-  $$('#skill-list [data-runargs]').forEach(el => el.onclick = (e) => {
+  $$('#skill-list [data-term]').forEach(el => el.onclick = (e) => {
     e.stopPropagation();
-    launchSkill(el.dataset.runargs, $('#skill-args').value.trim());
+    openTerm(el.dataset.term, '');
   });
-  $$('#skill-list [data-term]').forEach(el => el.onclick = async (e) => {
+  $$('#skill-list [data-disable]').forEach(el => el.onclick = async (e) => {
     e.stopPropagation();
-    const cwd = $('#target-proj').value;
-    await api('/api/terminal', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cwd, command: '/' + el.dataset.term }),
-    }).catch(err => alert(err.message));
+    await setSkillDisabled(el.dataset.disable, true);
+    renderCatTabs(); renderSkillList();
   });
-  $$('#skill-list .skill-row').forEach(row => row.onclick = () => {
-    openSkill = openSkill === row.dataset.skill ? null : row.dataset.skill;
-    renderSkillList();
-    if (openSkill) $('#skill-args')?.focus();
+  $$('#skill-list [data-enable]').forEach(el => el.onclick = async (e) => {
+    e.stopPropagation();
+    await setSkillDisabled(el.dataset.enable, false);
+    renderCatTabs(); renderSkillList();
   });
+  $$('#skill-list .skill-row').forEach(row => row.onclick = () => openSkillSheet(row.dataset.skill));
+}
+
+async function bulkToggle(names, disable) {
+  if (disable && !confirm(`Disable ${names.length} skill${names.length === 1 ? '' : 's'}? They'll stop loading in Claude Code until re-enabled.`)) return;
+  for (const name of names) { try { await setSkillDisabled(name, disable); } catch {} }
+  renderCatTabs(); renderSkillList();
 }
 
 async function launchSkill(name, args) {
   const cwd = $('#target-proj').value;
   const dangerous = state.boot.config.dangerous;
+  const model = targetModel();
   const prompt = '/' + name + (args ? ' ' + args : '');
   try {
     const { id } = await api('/api/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, cwd, dangerous }),
+      body: JSON.stringify({ prompt, cwd, dangerous, model }),
     });
     attachRun(id, prompt);
   } catch (e) {
     alert(e.message);
   }
+}
+
+async function openTerm(name, args) {
+  const cwd = $('#target-proj').value;
+  const command = '/' + name + (args ? ' ' + args : '');
+  await api('/api/terminal', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cwd, command, model: targetModel() }),
+  }).catch(err => alert(err.message));
+}
+
+// ------------------------------------------------------------ skill sheet
+
+const sheetEl = () => $('#skill-sheet');
+const backdropEl = () => $('#sheet-backdrop');
+
+function closeSheet() {
+  const sh = sheetEl(), bd = backdropEl();
+  if (sh) { sh.hidden = true; sh.classList.remove('open'); sh.innerHTML = ''; }
+  if (bd) bd.hidden = true;
+}
+
+async function openSkillSheet(name) {
+  const s = state.boot.skills.find(x => x.name === name);
+  if (!s) return;
+  const sh = sheetEl(), bd = backdropEl();
+  const pinned = new Set(state.boot.config.pins).has(name);
+  const primaryRun = isAutonomous(name);
+
+  sh.innerHTML = `
+    <header class="sheet-head">
+      <div>
+        <div class="sheet-kind">${s.kind === 'command' ? 'COMMAND' : 'SKILL'} · ${esc((s.category || '').toUpperCase())}${s.disabled ? ' · <span class="off-tag">DISABLED</span>' : ''}</div>
+        <h2 class="sheet-name">/${esc(name)}</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="sheet-close">✕</button>
+    </header>
+    <div class="sheet-body">
+      <p class="sheet-desc">${esc(s.description || 'No description.')}</p>
+      ${primaryRun ? '' : `<div class="sheet-hint">Interactive skill — it may ask you questions mid-run. Prefer <b>TERMINAL</b>; a headless RUN can't answer its prompts.</div>`}
+
+      <label class="sheet-label">ARGUMENTS <span>optional — appended to /${esc(name)}</span></label>
+      <input class="input" id="sheet-args" placeholder="e.g. --fix, a topic, a path…" autocomplete="off">
+
+      <label class="sheet-label">MODEL</label>
+      <span class="select-wrap"><select class="select" id="sheet-model">
+        ${MODELS.map(([v, l]) => `<option value="${v}" ${targetModel() === v ? 'selected' : ''}>${l === 'DEFAULT' ? 'DEFAULT (strip)' : l}</option>`).join('')}
+      </select></span>
+
+      <div class="sheet-actions">
+        <button class="btn ${primaryRun ? '' : 'btn-amber'}" id="sheet-term">TERMINAL ⧉</button>
+        <button class="btn ${primaryRun ? 'btn-amber' : ''}" id="sheet-run">RUN ▸</button>
+      </div>
+      <div class="sheet-meta">
+        <button class="btn btn-ghost btn-sm" id="sheet-pin">${pinned ? '◆ PINNED' : '◇ PIN'}</button>
+        <button class="btn btn-ghost btn-sm" id="sheet-disable">${s.disabled ? 'ENABLE' : '⏻ DISABLE'}</button>
+        <button class="btn btn-ghost btn-sm" id="sheet-src">VIEW SOURCE</button>
+      </div>
+      <div class="sheet-src" id="sheet-src-body" hidden></div>
+    </div>`;
+
+  bd.hidden = false;
+  sh.hidden = false;
+  requestAnimationFrame(() => sh.classList.add('open'));
+
+  const argsFor = () => $('#sheet-args').value.trim();
+  const modelOverride = () => { const v = $('#sheet-model').value; return v || targetModel(); };
+
+  $('#sheet-close').onclick = closeSheet;
+  bd.onclick = closeSheet;
+  $('#sheet-run').onclick = async () => {
+    const cwd = $('#target-proj').value;
+    const prompt = '/' + name + (argsFor() ? ' ' + argsFor() : '');
+    try {
+      const { id } = await api('/api/run', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, cwd, dangerous: state.boot.config.dangerous, model: modelOverride() }),
+      });
+      closeSheet(); attachRun(id, prompt);
+    } catch (e) { alert(e.message); }
+  };
+  $('#sheet-term').onclick = async () => {
+    const cwd = $('#target-proj').value;
+    const command = '/' + name + (argsFor() ? ' ' + argsFor() : '');
+    try {
+      await api('/api/terminal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cwd, command, model: modelOverride() }),
+      });
+      closeSheet();
+    } catch (e) { alert(e.message); }
+  };
+  $('#sheet-pin').onclick = async () => {
+    const cur = new Set(state.boot.config.pins);
+    cur.has(name) ? cur.delete(name) : cur.add(name);
+    await saveConfig({ pins: [...cur] });
+    openSkillSheet(name); renderCatTabs(); renderSkillList();
+  };
+  $('#sheet-disable').onclick = async () => {
+    await setSkillDisabled(name, !s.disabled);
+    closeSheet(); renderCatTabs(); renderSkillList();
+  };
+  $('#sheet-src').onclick = async () => {
+    const box = $('#sheet-src-body');
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false; box.textContent = 'reading…';
+    try {
+      const src = await api('/api/skill/source?name=' + encodeURIComponent(name));
+      box.innerHTML = `<div class="sheet-src-path">${esc(src.path)}</div><pre>${esc(src.body)}${src.truncated ? '\n…(truncated)' : ''}</pre>`;
+    } catch (e) { box.textContent = 'could not read source: ' + e.message; }
+  };
+  $('#sheet-args').focus();
 }
 
 // ---------------------------------------------------------------- SESSIONS
@@ -606,6 +847,196 @@ async function viewSessionDetail(slug, id) {
   });
 }
 
+// ---------------------------------------------------------------- SEARCH
+
+function fmtDateShort(iso) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]}`;
+}
+
+// escape, then bold every occurrence of the query
+function mark(text, q) {
+  const et = esc(text), eq = esc(q);
+  if (!eq) return et;
+  try { return et.replace(new RegExp(eq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), m => `<mark>${m}</mark>`); }
+  catch { return et; }
+}
+
+const searchState = { q: '' };
+
+async function viewSearch() {
+  await boot();
+  main.innerHTML = `
+  <div class="view">
+    <div class="view-head"><div>
+      <div class="view-kicker">FULL-TEXT · EVERY TRANSCRIPT</div>
+      <h1 class="view-title">SEARCH</h1>
+    </div></div>
+    <div class="sess-controls">
+      <input class="input" id="search-q" placeholder="find anything you or claude ever wrote…" value="${esc(searchState.q)}" autocomplete="off">
+    </div>
+    <div class="search-results" id="search-results"><div class="empty">Type at least 2 characters.</div></div>
+  </div>`;
+
+  const inp = $('#search-q');
+  let timer = null;
+  const run = async () => {
+    const q = inp.value.trim();
+    searchState.q = q;
+    const box = $('#search-results');
+    if (q.length < 2) { box.innerHTML = `<div class="empty">Type at least 2 characters.</div>`; return; }
+    box.innerHTML = `<div class="boot-note">searching transcripts…</div>`;
+    try { renderSearch(await api('/api/search?q=' + encodeURIComponent(q))); }
+    catch (e) { box.innerHTML = `<div class="empty">SEARCH FAILED<br><b>${esc(e.message)}</b></div>`; }
+  };
+  inp.oninput = () => { clearTimeout(timer); timer = setTimeout(run, 300); };
+  inp.focus();
+  if (searchState.q) run();
+}
+
+function renderSearch(r) {
+  const el = $('#search-results');
+  if (!r.hits.length) { el.innerHTML = `<div class="empty">NO HITS.<br><b>Nothing matched “${esc(r.query)}”.</b></div>`; return; }
+  el.innerHTML = `<div class="search-count">${r.hits.length} session${r.hits.length === 1 ? '' : 's'} with matches</div>` +
+    r.hits.map((h, i) => `
+    <a class="search-hit row-in" style="animation-delay:${Math.min(i * 20, 300)}ms" href="#/session/${esc(h.slug)}/${esc(h.id)}">
+      <div class="search-hit-head">
+        <span class="sh-title">${esc(h.title)}</span>
+        <span class="sh-meta">${esc(h.project)}${h.when ? ' · ' + fmtDateShort(h.when) : ''}</span>
+      </div>
+      ${h.snippets.map(s => `<div class="sh-snip"><span class="sh-k ${s.kind}">${s.kind === 'user' ? 'YOU' : 'CLAUDE'}</span><span>${mark(s.text, r.query)}</span></div>`).join('')}
+    </a>`).join('');
+}
+
+// ---------------------------------------------------------------- USAGE
+
+function fmtCost(n) { return '$' + (n || 0).toFixed(2); }
+
+async function viewUsage() {
+  await boot();
+  const u = await api('/api/usage?days=30');
+  const t = u.totals;
+
+  const maxDay = Math.max(1, ...u.series.map(d => d.out));
+  const bars = u.series.map((d, i) =>
+    `<div class="ubar ${d.out ? 'on' : ''}" style="height:${d.out ? Math.max(4, Math.round(d.out / maxDay * 96)) : 2}px;animation-delay:${i * 12}ms">
+      <span class="tip">${d.date.slice(5)} — ${fmtTokens(d.out)} tok · ${d.prompts} pr</span>
+    </div>`).join('');
+
+  const maxModel = Math.max(1, ...u.models.map(m => m.out));
+  const modelRows = u.models.map(m => `
+    <div class="ubar-row">
+      <span class="ubar-lab">${esc(modelShort(m.model))}</span>
+      <span class="ubar-track"><i style="width:${Math.max(2, Math.round(m.out / maxModel * 100))}%"></i></span>
+      <span class="ubar-val">${fmtTokens(m.out)}</span>
+    </div>`).join('') || `<div class="empty">No model data.</div>`;
+
+  const maxProj = Math.max(1, ...u.projects.map(p => p.out));
+  const projRows = u.projects.map(p => `
+    <div class="ubar-row">
+      <span class="ubar-lab" title="${esc(p.project)}">${esc(p.project)}</span>
+      <span class="ubar-track"><i style="width:${Math.max(2, Math.round(p.out / maxProj * 100))}%"></i></span>
+      <span class="ubar-val">${fmtTokens(p.out)} · ${fmtCost(p.cost)}</span>
+    </div>`).join('') || `<div class="empty">No project data.</div>`;
+
+  main.innerHTML = `
+  <div class="view">
+    <div class="view-head"><div>
+      <div class="view-kicker">TOKENS &amp; SPEND · ALL TIME</div>
+      <h1 class="view-title">USAGE</h1>
+    </div></div>
+
+    <div class="day-ledger">
+      <span><b data-count="${t.out}" data-fmt="tok">0</b> TOK OUT</span><span class="sep">·</span>
+      <span><b data-count="${t.in}" data-fmt="tok">0</b> TOK IN</span><span class="sep">·</span>
+      <span><b data-count="${t.cacheRead}" data-fmt="tok">0</b> CACHE READ</span><span class="sep">·</span>
+      <span><b>${fmtCost(t.cost)}</b> EST. SPEND</span><span class="sep">·</span>
+      <span><b data-count="${t.sessions}">0</b> SESSIONS</span>
+    </div>
+
+    <section class="hours">
+      <div class="hours-title">TOKENS OUT · LAST ${u.days} DAYS</div>
+      <div class="hours-grid usage-grid">${bars}</div>
+    </section>
+
+    <div class="usage-cols">
+      <section>
+        <div class="col-title">BY MODEL</div>
+        ${modelRows}
+      </section>
+      <section>
+        <div class="col-title">BY PROJECT — TOP ${u.projects.length}</div>
+        ${projRows}
+      </section>
+    </div>
+    <div class="usage-note">Spend is an estimate derived from transcript token counts at built-in per-model rates — not a billed figure. Rates live in <code>lib/store.js › PRICING</code>.</div>
+  </div>`;
+
+  $$('[data-count]').forEach(countUp);
+}
+
+// ---------------------------------------------------------------- ACTIVE
+
+let activePoll = null;
+
+async function viewActive() {
+  await boot();
+  main.innerHTML = `
+  <div class="view">
+    <div class="view-head"><div>
+      <div class="view-kicker">RUNNING NOW · LOCAL FLEET</div>
+      <h1 class="view-title">ACTIVE</h1>
+    </div></div>
+    <div id="active-body"><div class="boot-note">scanning…</div></div>
+  </div>`;
+
+  const load = async () => {
+    try { renderActive(await api('/api/active')); } catch {}
+  };
+  await load();
+  clearInterval(activePoll);
+  activePoll = setInterval(load, 4000);
+}
+
+function renderActive(a) {
+  const body = $('#active-body');
+  if (!body) return;
+  const runsHtml = a.runs.length ? a.runs.map(r => {
+    const lamp = r.status === 'running' ? 'lamp-amber lamp-pulse' : r.status === 'done' ? 'lamp-green' : 'lamp-red';
+    return `
+    <div class="active-run" data-openrun="${esc(r.id)}" data-prompt="${esc(r.prompt)}">
+      <span class="lamp ${lamp}"></span>
+      <span class="ar-prompt">${esc(r.prompt)}</span>
+      <span class="ar-meta">${esc(r.model || '')}${r.dangerous ? ' · YOLO' : ''} · ${r.events} ev</span>
+      <span class="ar-status">${esc(r.status.toUpperCase())}</span>
+    </div>`;
+  }).join('') : `<div class="empty">No runs launched from HELM this session.</div>`;
+
+  const sessHtml = a.sessions.length ? a.sessions.map(s => `
+    <a class="active-sess" href="#/session/${esc(s.slug)}/${esc(s.id)}">
+      <span class="as-dot"></span>
+      <span class="as-title">${esc(s.title)}</span>
+      <span class="as-meta">${esc(s.project)} · ${fmtTime(s.end)}${s.gitBranch ? ' · ⎇ ' + esc(s.gitBranch) : ''}</span>
+    </a>`).join('') : `<div class="empty">No sessions touched in the last 15 minutes.</div>`;
+
+  body.innerHTML = `
+    <section class="active-sec">
+      <div class="col-title">HELM RUNS — ${a.runs.length}</div>
+      ${runsHtml}
+    </section>
+    <section class="active-sec">
+      <div class="col-title">ACTIVE ELSEWHERE — LAST 15 MIN</div>
+      <p class="active-hint">Sessions with activity in any terminal recently. HELM can see them, but only manages runs it launched.</p>
+      ${sessHtml}
+    </section>`;
+
+  $$('[data-openrun]').forEach(el => el.onclick = () => {
+    const id = el.dataset.openrun;
+    if (!state.runs.find(r => r.id === id)) attachRun(id, el.dataset.prompt, { open: true });
+    else { state.activeRun = id; consoleEl.hidden = false; consoleEl.classList.add('open'); $('#console-toggle').textContent = '▼'; renderConsole(); }
+  });
+}
+
 // ---------------------------------------------------------------- CONSOLE
 
 const consoleEl = $('#console');
@@ -647,6 +1078,8 @@ function attachRun(id, prompt, opts = {}) {
 }
 
 function renderTabs() {
+  const live = $('#nav-live');
+  if (live) live.hidden = !state.runs.some(r => r.status === 'running');
   consoleTabs.innerHTML = state.runs.slice(0, 8).map(r => `
     <button class="${state.activeRun === r.id ? 'active' : ''}" data-runtab="${r.id}">
       <span class="lamp ${r.status === 'running' ? 'lamp-amber lamp-pulse' : r.status === 'done' ? 'lamp-green' : 'lamp-red'}"></span>
@@ -692,12 +1125,16 @@ function renderConsole(append = false) {
 // ---------------------------------------------------------------- keyboard
 
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && sheetEl() && !sheetEl().hidden) { closeSheet(); return; }
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === '1') location.hash = '#/today';
   else if (e.key === '2') location.hash = '#/launch';
   else if (e.key === '3') location.hash = '#/sessions';
+  else if (e.key === '4') location.hash = '#/search';
+  else if (e.key === '5') location.hash = '#/usage';
+  else if (e.key === '6') location.hash = '#/active';
   else if (e.key === '/') {
     const inp = $('.main .input');
     if (inp) { e.preventDefault(); inp.focus(); }

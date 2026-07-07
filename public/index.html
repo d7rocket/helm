@@ -21,6 +21,9 @@
     <a href="#/today"    data-nav="today"><span class="nav-no">01</span>TODAY</a>
     <a href="#/launch"   data-nav="launch"><span class="nav-no">02</span>LAUNCHPAD</a>
     <a href="#/sessions" data-nav="sessions"><span class="nav-no">03</span>SESSIONS</a>
+    <a href="#/search"   data-nav="search"><span class="nav-no">04</span>SEARCH</a>
+    <a href="#/usage"    data-nav="usage"><span class="nav-no">05</span>USAGE</a>
+    <a href="#/active"   data-nav="active"><span class="nav-no">06</span>ACTIVE<span class="nav-live" id="nav-live" hidden></span></a>
   </div>
   <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light or dark theme">
     <span class="tt-icon" id="tt-icon">☾</span><span class="tt-label" id="tt-label">DARK</span>
@@ -36,6 +39,10 @@
 <main class="main" id="main">
   <div class="boot-note">warming instruments…</div>
 </main>
+
+<!-- Skill detail sheet -->
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+<aside class="sheet" id="skill-sheet" hidden aria-label="Skill detail"></aside>
 
 <!-- Run console drawer -->
 <section class="console" id="console" hidden>
