@@ -578,6 +578,15 @@ input, select, textarea { font: inherit; color: inherit; }
   color: var(--text-faint); border: 1px solid var(--line-soft);
   padding: 1px 4px; margin-left: 8px; vertical-align: middle;
 }
+.use-cnt {
+  font-family: var(--mono); font-size: 9px; color: var(--text-faint);
+  margin-left: 8px; vertical-align: middle;
+}
+.sheet-usage {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  color: var(--text-faint); margin-bottom: var(--sp-md);
+}
+.sheet-usage b { color: var(--accent); font-weight: 400; }
 
 /* disable (power) toggle on a row */
 .power-btn {

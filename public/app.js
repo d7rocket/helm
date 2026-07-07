@@ -56,6 +56,15 @@ function shiftDay(dateStr, delta) {
   return localDayStr(dt);
 }
 
+function fmtAgo(iso) {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d < 1) return 'today';
+  if (d === 1) return 'yesterday';
+  if (d < 30) return d + 'd ago';
+  if (d < 365) return Math.floor(d / 30) + 'mo ago';
+  return Math.floor(d / 365) + 'y ago';
+}
+
 function modelShort(m) {
   return String(m).replace(/^claude-/, '').replace(/-\d{8}$/, '');
 }
@@ -607,7 +616,7 @@ function renderSkillList() {
     return `
     <div class="skill-row ${s.disabled ? 'disabled' : ''} ${anim ? 'row-in' : ''}" ${anim ? `style="animation-delay:${Math.min(i * 14, 300)}ms"` : ''} data-skill="${esc(s.name)}">
       <button class="pin-btn ${pins.has(s.name) ? 'pinned' : ''}" data-pin="${esc(s.name)}" title="pin">${pins.has(s.name) ? '◆' : '◇'}</button>
-      <div class="skill-name">/${esc(s.name)}${s.kind === 'command' ? '<span class="kind-tag">cmd</span>' : ''}</div>
+      <div class="skill-name">/${esc(s.name)}${s.kind === 'command' ? '<span class="kind-tag">cmd</span>' : ''}${s.uses ? `<span class="use-cnt" title="used ${s.uses}× across your sessions">${s.uses}×</span>` : ''}</div>
       <div class="skill-desc">${esc(s.description || '—')}</div>
       <div class="skill-acts">
         ${s.disabled
@@ -706,6 +715,7 @@ async function openSkillSheet(name) {
     </header>
     <div class="sheet-body">
       <p class="sheet-desc">${esc(s.description || 'No description.')}</p>
+      ${s.uses ? `<div class="sheet-usage">USED <b>${s.uses}×</b>${s.lastUsed ? ` · LAST ${esc(fmtAgo(s.lastUsed).toUpperCase())}` : ''}</div>` : `<div class="sheet-usage">NEVER USED IN A TRACKED SESSION</div>`}
       ${primaryRun ? '' : `<div class="sheet-hint">Interactive skill — it may ask you questions mid-run. Prefer <b>TERMINAL</b>; a headless RUN can't answer its prompts.</div>`}
 
       <label class="sheet-label">ARGUMENTS <span>optional — appended to /${esc(name)}</span></label>

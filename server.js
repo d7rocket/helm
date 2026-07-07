@@ -93,7 +93,11 @@ function serveStatic(req, res, pathname) {
 
 const routes = {
   'GET /api/boot': async (req, res) => {
-    const [skills, projects] = await Promise.all([store.getSkills(), store.getProjects()]);
+    const [skills, projects, stats] = await Promise.all([store.getSkills(), store.getProjects(), store.getSkillStats()]);
+    for (const s of skills) {
+      const st = stats[s.name];
+      if (st) { s.uses = st.count; s.lastUsed = st.last; }
+    }
     sendJSON(res, 200, { skills, projects, config: readConfig(), claudeBin: runner.findClaude() });
   },
 
