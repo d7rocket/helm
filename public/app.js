@@ -542,7 +542,7 @@ function openComposer() {
   bd.onclick = closeSheet;
   $('#cmp-run').onclick = async () => {
     if (!prompt()) return $('#cmp-prompt').focus();
-    const cwd = $('#target-proj').value;
+    const cwd = targetCwd();
     try {
       const { id, queued } = await api('/api/run', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -552,7 +552,7 @@ function openComposer() {
     } catch (e) { alert(e.message); }
   };
   $('#cmp-term').onclick = async () => {
-    const cwd = $('#target-proj').value;
+    const cwd = targetCwd();
     try {
       await api('/api/terminal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -565,7 +565,15 @@ function openComposer() {
 }
 
 // The currently-targeted model (per-launch override falls back to the strip).
-function targetModel() { return ($('#target-model') || {}).value || ''; }
+function targetModel() { return ($('#target-model') || {}).value || (state.boot ? state.boot.config.model || '' : ''); }
+
+// Target project — the strip's select when Launchpad is mounted, else the saved default.
+function targetCwd() {
+  const sel = $('#target-proj');
+  if (sel && sel.value) return sel.value;
+  const cfg = state.boot ? state.boot.config : {};
+  return cfg.defaultProject || ((state.boot && state.boot.projects[0]) || {}).path || '';
+}
 
 async function setSkillDisabled(name, disable) {
   const r = await api('/api/skill/toggle', {
@@ -687,7 +695,7 @@ async function bulkToggle(names, disable) {
 }
 
 async function launchSkill(name, args) {
-  const cwd = $('#target-proj').value;
+  const cwd = targetCwd();
   const dangerous = state.boot.config.dangerous;
   const model = targetModel();
   const prompt = '/' + name + (args ? ' ' + args : '');
@@ -703,7 +711,7 @@ async function launchSkill(name, args) {
 }
 
 async function openTerm(name, args) {
-  const cwd = $('#target-proj').value;
+  const cwd = targetCwd();
   const command = '/' + name + (args ? ' ' + args : '');
   await api('/api/terminal', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -772,7 +780,7 @@ async function openSkillSheet(name) {
   $('#sheet-close').onclick = closeSheet;
   bd.onclick = closeSheet;
   $('#sheet-run').onclick = async () => {
-    const cwd = $('#target-proj').value;
+    const cwd = targetCwd();
     const prompt = '/' + name + (argsFor() ? ' ' + argsFor() : '');
     try {
       const { id, queued } = await api('/api/run', {
@@ -783,7 +791,7 @@ async function openSkillSheet(name) {
     } catch (e) { alert(e.message); }
   };
   $('#sheet-term').onclick = async () => {
-    const cwd = $('#target-proj').value;
+    const cwd = targetCwd();
     const command = '/' + name + (argsFor() ? ' ' + argsFor() : '');
     try {
       await api('/api/terminal', {
@@ -1366,9 +1374,144 @@ function renderConsole(append = false) {
   if (!append || atBottom) consoleBody.scrollTop = consoleBody.scrollHeight;
 }
 
+// ---------------------------------------------------------------- palette (Ctrl+K)
+
+const paletteState = { open: false, items: [], filtered: [], sel: 0 };
+
+const PALETTE_VIEWS = [
+  ['#/today', 'TODAY', 'daily report & flight log'],
+  ['#/launch', 'LAUNCHPAD', 'skills & automations'],
+  ['#/sessions', 'SESSIONS', 'every transcript'],
+  ['#/search', 'SEARCH', 'full-text across transcripts'],
+  ['#/usage', 'USAGE', 'tokens & spend'],
+  ['#/active', 'ACTIVE', 'running now'],
+];
+
+async function buildPaletteItems() {
+  const b = await boot();
+  const items = [];
+  for (const [hash, label, desc] of PALETTE_VIEWS) {
+    items.push({ kind: 'view', label, desc, hash, key: (label + ' ' + desc).toLowerCase() });
+  }
+  const pins = new Set(b.config.pins);
+  for (const s of b.skills.filter(x => !x.disabled)) {
+    items.push({
+      kind: 'skill', label: '/' + s.name, desc: s.description || '', name: s.name,
+      pinned: pins.has(s.name),
+      key: (s.name + ' ' + s.description).toLowerCase(),
+    });
+  }
+  if (!state.sessions) { try { state.sessions = await api('/api/sessions'); } catch {} }
+  for (const s of (state.sessions || []).slice(0, 40)) {
+    const label = s.title || s.firstPrompt || 'untitled session';
+    items.push({
+      kind: 'session', label, desc: s.project, hash: `#/session/${s.slug}/${s.id}`,
+      key: (label + ' ' + s.project).toLowerCase(),
+    });
+  }
+  return items;
+}
+
+function paletteFilter(q) {
+  const items = paletteState.items;
+  if (!q) {
+    return [
+      ...items.filter(i => i.kind === 'view'),
+      ...items.filter(i => i.kind === 'skill' && i.pinned).slice(0, 6),
+      ...items.filter(i => i.kind === 'session').slice(0, 5),
+    ];
+  }
+  return items
+    .map(i => {
+      const name = i.label.toLowerCase();
+      let rank = -1;
+      if (name.startsWith(q) || name.replace(/^\//, '').startsWith(q)) rank = 0;
+      else if (name.includes(q)) rank = 1;
+      else if (i.key.includes(q)) rank = 2;
+      return { i, rank };
+    })
+    .filter(x => x.rank >= 0)
+    .sort((a, b) => a.rank - b.rank)
+    .map(x => x.i)
+    .slice(0, 14);
+}
+
+function renderPalette() {
+  const list = $('#palette-list');
+  const f = paletteState.filtered;
+  list.innerHTML = f.length ? f.map((i, idx) => `
+    <div class="palette-item ${idx === paletteState.sel ? 'sel' : ''}" data-pi="${idx}">
+      <span class="pi-kind ${i.kind}">${i.kind === 'view' ? 'VIEW' : i.kind === 'skill' ? 'SKILL' : 'SESS'}</span>
+      <span class="pi-label">${esc(i.label)}</span>
+      <span class="pi-desc">${esc(i.desc || '')}</span>
+    </div>`).join('') : `<div class="palette-empty">NOTHING MATCHES.</div>`;
+  $$('#palette-list [data-pi]').forEach(el => {
+    el.onclick = () => paletteGo(f[Number(el.dataset.pi)]);
+    el.onmousemove = () => {
+      const idx = Number(el.dataset.pi);
+      if (paletteState.sel !== idx) { paletteState.sel = idx; renderPalette(); }
+    };
+  });
+  const sel = $('#palette-list .sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function paletteGo(item) {
+  if (!item) return;
+  closePalette();
+  if (item.kind === 'skill') {
+    openSkillSheet(item.name);
+  } else if (item.hash) {
+    if (location.hash === item.hash) route();
+    else location.hash = item.hash;
+  }
+}
+
+async function openPalette() {
+  if (paletteState.open) return;
+  paletteState.open = true;
+  const pal = $('#palette'), bd = $('#palette-backdrop');
+  closeSheet();
+  bd.hidden = false; pal.hidden = false;
+  requestAnimationFrame(() => pal.classList.add('open'));
+  const inp = $('#palette-input');
+  inp.value = '';
+  inp.focus();
+  paletteState.items = await buildPaletteItems();
+  paletteState.sel = 0;
+  paletteState.filtered = paletteFilter('');
+  renderPalette();
+  bd.onclick = closePalette;
+  inp.oninput = () => {
+    paletteState.sel = 0;
+    paletteState.filtered = paletteFilter(inp.value.trim().toLowerCase());
+    renderPalette();
+  };
+  inp.onkeydown = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); paletteState.sel = Math.min(paletteState.sel + 1, paletteState.filtered.length - 1); renderPalette(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); paletteState.sel = Math.max(paletteState.sel - 1, 0); renderPalette(); }
+    else if (e.key === 'Enter') { e.preventDefault(); paletteGo(paletteState.filtered[paletteState.sel]); }
+    else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+  };
+}
+
+function closePalette() {
+  if (!paletteState.open) return;
+  paletteState.open = false;
+  $('#palette').classList.remove('open');
+  $('#palette').hidden = true;
+  $('#palette-backdrop').hidden = true;
+}
+
 // ---------------------------------------------------------------- keyboard
 
 document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    paletteState.open ? closePalette() : openPalette();
+    return;
+  }
+  if (e.key === 'Escape' && paletteState.open) { closePalette(); return; }
   if (e.key === 'Escape' && sheetEl() && !sheetEl().hidden) { closeSheet(); return; }
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return;

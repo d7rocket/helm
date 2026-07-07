@@ -47,6 +47,14 @@
 <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
 <aside class="sheet" id="skill-sheet" hidden aria-label="Skill detail"></aside>
 
+<!-- Command palette (Ctrl+K) -->
+<div class="palette-backdrop" id="palette-backdrop" hidden></div>
+<div class="palette" id="palette" hidden role="dialog" aria-label="Command palette">
+  <input class="palette-input" id="palette-input" placeholder="jump to a view, skill, or session…" autocomplete="off" spellcheck="false">
+  <div class="palette-list" id="palette-list"></div>
+  <div class="palette-foot"><span>↑↓ navigate</span><span>↵ open</span><span>esc close</span></div>
+</div>
+
 <!-- Run console drawer -->
 <section class="console" id="console" hidden>
   <header class="console-bar" id="console-bar">
