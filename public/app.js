@@ -947,12 +947,22 @@ async function viewSessionDetail(slug, id, at) {
     } else blocks.push(ev);
   }
 
+  // badge the model on each change, not every message
+  let lastModel = null;
+  for (const b of blocks) {
+    if (b.kind !== 'assistant' || !b.model) continue;
+    b.showModel = b.model !== lastModel;
+    lastModel = b.model;
+  }
+
   const html = blocks.map((b, i) => {
     if (b.kind === 'user') return `
       <div class="tl-user" data-t="${esc(b.t || '')}"><div class="who">YOU · ${b.t ? fmtTime(b.t) : ''}</div>
       <div class="txt">${esc(b.text)}</div></div>`;
     if (b.kind === 'assistant') return `
-      <div class="tl-assistant" data-t="${esc(b.t || '')}"><div class="txt">${md(b.text)}</div></div>`;
+      <div class="tl-assistant" data-t="${esc(b.t || '')}">
+        ${b.showModel ? `<div class="tl-model">◈ ${esc(modelShort(b.model))}</div>` : ''}
+        <div class="txt">${md(b.text)}</div></div>`;
     if (b.kind === 'tools') {
       const vis = b.items.slice(0, 6);
       const rest = b.items.length - vis.length;
@@ -967,11 +977,16 @@ async function viewSessionDetail(slug, id, at) {
     return '';
   }).join('');
 
+  const title = s.title || s.firstPrompt || 'untitled session';
   main.innerHTML = `
   <div class="view">
-    <a class="back-link" href="#/sessions">← ALL SESSIONS</a>
+    <div class="detail-sticky">
+      <a class="back-link" href="#/sessions">← ALL SESSIONS</a>
+      <span class="ds-title">${esc(title)}</span>
+      <span class="ds-meta">${fmtDur(s.durationMs)} · ${fmtTokens((s.tokens || {}).out)} tok</span>
+    </div>
     <div class="view-kicker">${esc(s.project || slug)}</div>
-    <h1 class="view-title" style="font-size:clamp(26px,3vw,40px)">${esc(s.title || s.firstPrompt || 'untitled session')}</h1>
+    <h1 class="view-title" style="font-size:clamp(26px,3vw,40px)">${esc(title)}</h1>
     <div class="detail-meta">
       ${d ? `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()} ${fmtTime(s.start)}` : ''}
       <span class="sep">·</span>${fmtDur(s.durationMs)}
@@ -986,6 +1001,14 @@ async function viewSessionDetail(slug, id, at) {
       ${detail.truncated ? `<div class="tl-turn">TRUNCATED · ${detail.truncated} MORE EVENTS</div>` : ''}
     </div>
   </div>`;
+
+  // reveal the sticky bar's title/meta only once it is actually stuck
+  const sticky = $('.detail-sticky');
+  if (sticky) {
+    const sentinel = document.createElement('div');
+    sticky.before(sentinel);
+    new IntersectionObserver(([en]) => sticky.classList.toggle('stuck', !en.isIntersecting)).observe(sentinel);
+  }
 
   const resumeBtn = $('#resume-btn');
   if (resumeBtn) resumeBtn.onclick = async () => {

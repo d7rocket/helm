@@ -875,9 +875,30 @@ input, select, textarea { font: inherit; color: inherit; }
 
 .back-link {
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
-  color: var(--text-faint); display: inline-block; margin-bottom: var(--sp-lg);
+  color: var(--text-faint); display: inline-block;
 }
 .back-link:hover { color: var(--accent); }
+
+/* compact sticky strip — keeps orientation while scrolling a long transcript */
+.detail-sticky {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: baseline; gap: var(--sp-md);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 12px 0 10px;
+  margin-bottom: var(--sp-lg);
+}
+.ds-title {
+  font-size: 12.5px; font-weight: 500; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0; flex: 1;
+  opacity: 0; transition: opacity .15s ease;
+}
+.ds-meta {
+  font-family: var(--mono); font-size: 10px; color: var(--text-faint); white-space: nowrap;
+  opacity: 0; transition: opacity .15s ease;
+}
+.detail-sticky.stuck .ds-title, .detail-sticky.stuck .ds-meta { opacity: 1; }
 
 .detail-meta {
   margin-top: var(--sp-md);
@@ -919,7 +940,15 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 .tl-assistant .txt ul { margin: 8px 0 8px 18px; }
 
-.tl-tools { margin: 6px 0; }
+.tl-tools {
+  margin: 8px 0;
+  border-left: 2px solid var(--line-soft);
+  padding-left: 12px;
+}
+.tl-model {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+  color: var(--accent-dim); margin: 4px 0 2px;
+}
 .tl-tool {
   display: flex; gap: 10px; align-items: baseline;
   font-family: var(--mono); font-size: 11px;
