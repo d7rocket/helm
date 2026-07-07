@@ -931,12 +931,12 @@ async function viewUsage() {
       <span class="ubar-val">${fmtTokens(m.out)}</span>
     </div>`).join('') || `<div class="empty">No model data.</div>`;
 
-  const maxProj = Math.max(1, ...u.projects.map(p => p.out));
+  const maxProj = Math.max(1, ...u.projects.map(p => p.cost));
   const projRows = u.projects.map(p => `
     <div class="ubar-row">
       <span class="ubar-lab" title="${esc(p.project)}">${esc(p.project)}</span>
-      <span class="ubar-track"><i style="width:${Math.max(2, Math.round(p.out / maxProj * 100))}%"></i></span>
-      <span class="ubar-val">${fmtTokens(p.out)} · ${fmtCost(p.cost)}</span>
+      <span class="ubar-track"><i style="width:${Math.max(2, Math.round(p.cost / maxProj * 100))}%"></i></span>
+      <span class="ubar-val">${fmtCost(p.cost)} · ${fmtTokens(p.out)}</span>
     </div>`).join('') || `<div class="empty">No project data.</div>`;
 
   main.innerHTML = `
@@ -969,7 +969,7 @@ async function viewUsage() {
         ${projRows}
       </section>
     </div>
-    <div class="usage-note">Spend is an estimate derived from transcript token counts at built-in per-model rates — not a billed figure. Rates live in <code>lib/store.js › PRICING</code>.</div>
+    <div class="usage-note">This is what your usage <em>would</em> cost at pay-as-you-go API rates — priced per message from each one's own model and exact token counts, not your actual (subscription) bill. Rates live in <code>lib/store.js › PRICING</code>.</div>
   </div>`;
 
   $$('[data-count]').forEach(countUp);
