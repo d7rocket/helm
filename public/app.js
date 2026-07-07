@@ -269,6 +269,12 @@ async function route() {
     const m = hash.match(r.re);
     if (m) {
       $$('.rail-nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === r.nav));
+      // soft exit for the outgoing view (skipped on first paint / reduced motion)
+      if (main.querySelector('.view') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        main.classList.add('leaving');
+        await new Promise(res => setTimeout(res, 90));
+        main.classList.remove('leaving');
+      }
       main.innerHTML = '<div class="boot-note">reading instruments…</div>';
       try { await r.view(...m.slice(1)); }
       catch (e) {
