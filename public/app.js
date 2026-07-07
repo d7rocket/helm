@@ -1069,6 +1069,9 @@ const consoleBody = $('#console-body');
 const consoleTabs = $('#console-tabs');
 const consoleLamp = $('#console-lamp');
 const killBtn = $('#console-kill');
+const rerunBtn = $('#console-rerun');
+const copyBtn = $('#console-copy');
+const clearBtn = $('#console-clear');
 
 $('#console-bar').onclick = (e) => {
   if (e.target.closest('button') && !e.target.closest('#console-toggle')) return;
@@ -1120,13 +1123,46 @@ function renderTabs() {
 function renderConsole(append = false) {
   renderTabs();
   const run = state.runs.find(r => r.id === state.activeRun);
-  if (!run) { consoleBody.innerHTML = ''; return; }
+  if (!run) {
+    consoleBody.innerHTML = '';
+    killBtn.hidden = rerunBtn.hidden = copyBtn.hidden = clearBtn.hidden = true;
+    return;
+  }
 
   consoleLamp.className = 'lamp ' + (run.status === 'running' ? 'lamp-amber lamp-pulse' : run.status === 'done' ? 'lamp-green' : 'lamp-red');
-  killBtn.hidden = run.status !== 'running';
+  const finished = run.status !== 'running';
+  killBtn.hidden = finished;
   killBtn.onclick = async (e) => {
     e.stopPropagation();
     await api('/api/kill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: run.id }) });
+  };
+  rerunBtn.hidden = !finished;
+  rerunBtn.onclick = async (e) => {
+    e.stopPropagation();
+    try {
+      const { id } = await api('/api/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: run.id }) });
+      attachRun(id, run.prompt);
+    } catch (err) { alert(err.message); }
+  };
+  copyBtn.hidden = !finished;
+  copyBtn.onclick = async (e) => {
+    e.stopPropagation();
+    const result = [...run.lines].reverse().find(l => l.kind === 'result' && l.text);
+    const text = result ? result.text : run.lines.filter(l => l.kind === 'text').map(l => l.text).join('\n\n');
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'COPIED ✓';
+      setTimeout(() => { copyBtn.textContent = 'COPY'; }, 1500);
+    } catch { alert('Clipboard unavailable.'); }
+  };
+  clearBtn.hidden = !state.runs.some(r => r.status !== 'running');
+  clearBtn.onclick = (e) => {
+    e.stopPropagation();
+    state.runs = state.runs.filter(r => r.status === 'running');
+    if (!state.runs.find(r => r.id === state.activeRun)) state.activeRun = (state.runs[0] || {}).id || null;
+    if (!state.runs.length) { consoleEl.hidden = true; consoleEl.classList.remove('open'); }
+    renderConsole();
   };
 
   const line = (ev) => {

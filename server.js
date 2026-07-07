@@ -168,6 +168,12 @@ const routes = {
     sendJSON(res, result.error ? 400 : 200, result);
   },
 
+  'POST /api/rerun': async (req, res) => {
+    const body = await readBody(req);
+    const result = runner.rerun(String(body.id || ''));
+    sendJSON(res, result.error ? 400 : 200, result);
+  },
+
   'POST /api/kill': async (req, res) => {
     const body = await readBody(req);
     sendJSON(res, 200, { ok: runner.killRun(String(body.id || '')) });
