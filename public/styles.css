@@ -1075,6 +1075,73 @@ a.sh-snip:hover { background: var(--accent-wash); }
 .delta.down { color: var(--text-dim); }
 .usage-note code { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
 
+/* ============================================================ CONFIG */
+
+.config-body {
+  margin-top: var(--sp-xl);
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--sp-xl);
+  align-items: start;
+}
+.config-nav { display: flex; flex-direction: column; max-height: 72vh; overflow-y: auto; padding-right: 4px; }
+.config-group {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.2em;
+  color: var(--text-faint); margin: var(--sp-md) 0 6px;
+}
+.config-group:first-child { margin-top: 0; }
+.config-file {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  text-align: left;
+  padding: 7px 10px; margin: 0 -10px;
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.config-file:hover { background: var(--bg-raise); }
+.config-file.sel { border-color: var(--accent-dim); color: var(--accent); }
+.cf-name {
+  font-family: var(--mono); font-size: 11.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cf-meta { font-family: var(--mono); font-size: 9px; color: var(--text-faint); white-space: nowrap; }
+
+.config-editor { min-height: 60vh; display: flex; flex-direction: column; }
+.config-editor-head {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--sp-md);
+  margin-bottom: var(--sp-sm);
+}
+.config-path {
+  font-family: var(--mono); font-size: 10px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.config-acts { display: flex; gap: 8px; align-items: center; }
+.config-dirty {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+  color: var(--accent);
+  animation: livepulse 1.6s ease-in-out infinite;
+}
+.config-text {
+  flex: 1;
+  min-height: 62vh;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-soft);
+  padding: var(--sp-md);
+  font-family: var(--mono); font-size: 12px; line-height: 1.65;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  white-space: pre; overflow-wrap: normal; overflow-x: auto;
+  tab-size: 2;
+}
+.config-text:focus { border-color: var(--accent-dim); }
+.config-text[readonly] { color: var(--text-dim); }
+.config-note { font-family: var(--mono); font-size: 10px; color: var(--red); margin-top: 8px; }
+
+@media (max-width: 1100px) {
+  .config-body { grid-template-columns: 1fr; }
+  .config-nav { max-height: 30vh; }
+}
+
 /* ============================================================ ACTIVE */
 
 .active-sec { margin-top: var(--sp-xl); }

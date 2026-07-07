@@ -253,6 +253,7 @@ const routes = [
   { re: /^#\/search$/, view: viewSearch, nav: 'search' },
   { re: /^#\/usage$/, view: viewUsage, nav: 'usage' },
   { re: /^#\/active$/, view: viewActive, nav: 'active' },
+  { re: /^#\/config$/, view: viewConfig, nav: 'config' },
 ];
 
 let todayPoll = null;
@@ -1241,6 +1242,101 @@ function renderActive(a) {
   });
 }
 
+// ---------------------------------------------------------------- CONFIG
+
+const configState = { sel: '', loaded: null };
+
+async function viewConfig() {
+  await boot();
+  const { groups } = await api('/api/config-files');
+
+  main.innerHTML = `
+  <div class="view">
+    <div class="view-head"><div>
+      <div class="view-kicker">CLAUDE.MD · MEMORY · HOOKS</div>
+      <h1 class="view-title">CONFIG</h1>
+    </div></div>
+    <div class="config-body">
+      <nav class="config-nav" id="config-nav">
+        ${groups.map(g => `
+          <div class="config-group">${esc(g.title)}</div>
+          ${g.files.map(f => `
+          <button class="config-file ${configState.sel === f.path ? 'sel' : ''}" data-cf="${esc(f.path)}" title="${esc(f.path)}">
+            <span class="cf-name">${esc(f.name)}</span>
+            <span class="cf-meta">${f.sizeKB}KB${f.editable ? '' : ' · RO'}</span>
+          </button>`).join('')}`).join('')}
+      </nav>
+      <section class="config-editor" id="config-editor">
+        <div class="empty">PICK A FILE.<br><b>Edits are whitelisted, atomic, and backed up before every save.</b></div>
+      </section>
+    </div>
+  </div>`;
+
+  $$('#config-nav [data-cf]').forEach(el => el.onclick = () => loadConfigFile(el.dataset.cf));
+
+  // restore selection, or default to the global CLAUDE.md
+  const first = configState.sel || ((groups[0] || {}).files[0] || {}).path;
+  if (first) loadConfigFile(first);
+}
+
+async function loadConfigFile(p) {
+  configState.sel = p;
+  $$('#config-nav [data-cf]').forEach(el => el.classList.toggle('sel', el.dataset.cf === p));
+  const ed = $('#config-editor');
+  ed.innerHTML = `<div class="boot-note">reading…</div>`;
+  let f;
+  try { f = await api('/api/config-file?path=' + encodeURIComponent(p)); }
+  catch (e) { ed.innerHTML = `<div class="empty">COULD NOT READ.<br><b>${esc(e.message)}</b></div>`; return; }
+  configState.loaded = f;
+
+  ed.innerHTML = `
+    <div class="config-editor-head">
+      <div class="config-path">${esc(f.path)}</div>
+      <div class="config-acts">
+        <span class="config-dirty" id="config-dirty" hidden>UNSAVED</span>
+        ${f.editable
+          ? `<button class="btn btn-sm" id="config-revert" disabled>REVERT</button>
+             <button class="btn btn-sm btn-amber" id="config-save" disabled>SAVE</button>`
+          : `<span class="tag">READ-ONLY</span>`}
+      </div>
+    </div>
+    <textarea class="config-text" id="config-text" spellcheck="false" ${f.editable ? '' : 'readonly'}></textarea>
+    ${f.truncated ? `<div class="config-note">File truncated for display — too large to edit here.</div>` : ''}`;
+
+  const ta = $('#config-text');
+  ta.value = f.content;
+  if (!f.editable || f.truncated) { if ($('#config-save')) $('#config-save').disabled = true; return; }
+
+  const save = $('#config-save'), revert = $('#config-revert'), dirty = $('#config-dirty');
+  const paint = () => {
+    const changed = ta.value !== configState.loaded.content;
+    save.disabled = revert.disabled = !changed;
+    dirty.hidden = !changed;
+  };
+  ta.oninput = paint;
+  revert.onclick = () => { ta.value = configState.loaded.content; paint(); };
+  save.onclick = async () => {
+    save.disabled = true; save.textContent = 'SAVING…';
+    try {
+      await api('/api/config-file', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: f.path, content: ta.value }),
+      });
+      configState.loaded.content = ta.value;
+      save.textContent = 'SAVED ✓';
+    } catch (e) {
+      save.textContent = 'FAILED';
+      alert(e.message);
+    }
+    setTimeout(() => { save.textContent = 'SAVE'; paint(); }, 1400);
+    paint();
+  };
+  // Ctrl+S saves while the editor is focused
+  ta.onkeydown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (!save.disabled) save.onclick(); }
+  };
+}
+
 // ---------------------------------------------------------------- CONSOLE
 
 const consoleEl = $('#console');
@@ -1385,6 +1481,7 @@ const PALETTE_VIEWS = [
   ['#/search', 'SEARCH', 'full-text across transcripts'],
   ['#/usage', 'USAGE', 'tokens & spend'],
   ['#/active', 'ACTIVE', 'running now'],
+  ['#/config', 'CONFIG', 'CLAUDE.md, memory & hooks'],
 ];
 
 async function buildPaletteItems() {
@@ -1522,6 +1619,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '4') location.hash = '#/search';
   else if (e.key === '5') location.hash = '#/usage';
   else if (e.key === '6') location.hash = '#/active';
+  else if (e.key === '7') location.hash = '#/config';
   else if (e.key === '/') {
     const inp = $('.main .input');
     if (inp) { e.preventDefault(); inp.focus(); }

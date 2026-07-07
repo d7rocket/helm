@@ -161,6 +161,21 @@ const routes = {
     sendJSON(res, 200, src);
   },
 
+  'GET /api/config-files': async (req, res) => {
+    sendJSON(res, 200, { groups: await store.listConfigFiles() });
+  },
+
+  'GET /api/config-file': async (req, res, q) => {
+    const result = await store.readConfigFile(String(q.path || ''));
+    sendJSON(res, result.error ? 404 : 200, result);
+  },
+
+  'PUT /api/config-file': async (req, res) => {
+    const body = await readBody(req);
+    const result = await store.writeConfigFile(String(body.path || ''), body.content);
+    sendJSON(res, result.error ? 400 : 200, result);
+  },
+
   'POST /api/run': async (req, res) => {
     const body = await readBody(req);
     const result = runner.startRun({
