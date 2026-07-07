@@ -129,9 +129,12 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;   /* live counters must not shift layout */
   min-height: 100vh;
   overflow-x: clip;
 }
+
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
 ::selection { background: var(--accent); color: var(--on-accent); }
 
@@ -216,7 +219,7 @@ input, select, textarea { font: inherit; color: inherit; }
   transition: color .15s, border-color .15s, background .15s;
 }
 .theme-toggle:hover { color: var(--text); border-color: var(--text-dim); background: var(--bg-raise); }
-.theme-toggle:active { transform: scale(0.97); }
+.theme-toggle:active { transform: scale(0.96); }
 .tt-icon { font-size: 12.5px; line-height: 1; color: var(--accent); }
 
 /* accent-color picker — a row of swatches */
@@ -226,8 +229,12 @@ input, select, textarea { font: inherit; color: inherit; }
   background: var(--sw);
   box-shadow: 0 0 0 1px var(--line);
   transition: transform .12s, box-shadow .12s;
+  position: relative;
 }
+/* widen the hit area to the swatch pitch without overlapping neighbours */
+.swatch::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
 .swatch:hover { transform: scale(1.18); }
+.swatch:active { transform: scale(0.96); }
 .swatch.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--sw); }
 
 .rail-foot {
@@ -280,6 +287,7 @@ input, select, textarea { font: inherit; color: inherit; }
   font-size: clamp(34px, 4.4vw, 56px);
   line-height: 0.98;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 .view-title .thin { font-weight: 500; color: var(--text-dim); }
 
@@ -313,7 +321,7 @@ input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text-dim);
-  transition: color .12s, border-color .12s, background .12s;
+  transition: color .12s, border-color .12s, background .12s, transform .1s ease;
   white-space: nowrap;
 }
 .btn:hover { color: var(--text); border-color: var(--text-dim); }
@@ -457,6 +465,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .sortie-title {
   font-family: var(--display); font-weight: 700; font-size: 21px;
   line-height: 1.2; margin: 8px 0 4px;
+  text-wrap: balance;
 }
 .sortie-title a:hover { color: var(--accent); }
 .sortie-first {
@@ -592,7 +601,9 @@ input, select, textarea { font: inherit; color: inherit; }
 .power-btn {
   color: var(--text-faint); font-size: 13px; width: 26px; height: 26px;
   border: 1px solid transparent; transition: color .12s, border-color .12s;
+  position: relative;
 }
+.power-btn::after { content: ''; position: absolute; inset: -7px; }
 .power-btn:hover { color: var(--red); border-color: var(--red); }
 
 /* disabled skill */
@@ -641,7 +652,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .sheet-name { font-family: var(--mono); font-size: 18px; letter-spacing: 0.01em; color: var(--text); }
 
 .sheet-body { padding: var(--sp-lg); overflow-y: auto; }
-.sheet-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-dim); margin-bottom: var(--sp-md); }
+.sheet-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-dim); margin-bottom: var(--sp-md); text-wrap: pretty; }
 .sheet-hint {
   font-size: 11.5px; line-height: 1.5; color: var(--text-dim);
   background: var(--accent-wash); border-left: 2px solid var(--accent-line);
@@ -846,7 +857,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .tl-user .txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; max-width: 75ch; }
 
 .tl-assistant { padding: var(--sp-sm) 0; max-width: 72ch; }
-.tl-assistant .txt { color: var(--text-dim); font-size: 13.5px; overflow-wrap: anywhere; }
+.tl-assistant .txt { color: var(--text-dim); font-size: 13.5px; overflow-wrap: anywhere; text-wrap: pretty; }
 .tl-assistant .txt strong { color: var(--text); font-weight: 500; }
 .tl-assistant .txt code, .tl-user .txt code {
   font-family: var(--mono); font-size: 0.85em;

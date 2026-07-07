@@ -534,8 +534,7 @@ function openComposer() {
       </div>
       <div class="sheet-hint">RUN streams a headless one-shot into the console. OPEN TERMINAL drops you into an interactive claude in the target project — type the prompt yourself.</div>
     </div>`;
-  bd.hidden = false; sh.hidden = false;
-  requestAnimationFrame(() => sh.classList.add('open'));
+  openSheetShell(sh, bd);
 
   const prompt = () => $('#cmp-prompt').value.trim();
   const model = () => { const v = $('#cmp-model').value; return v || targetModel(); };
@@ -725,10 +724,21 @@ async function openTerm(name, args) {
 const sheetEl = () => $('#skill-sheet');
 const backdropEl = () => $('#sheet-backdrop');
 
+// exit is animated: slide out, then hide — softer than a hard vanish
+let sheetCloseTimer = null;
 function closeSheet() {
   const sh = sheetEl(), bd = backdropEl();
-  if (sh) { sh.hidden = true; sh.classList.remove('open'); sh.innerHTML = ''; }
   if (bd) bd.hidden = true;
+  if (!sh || sh.hidden) return;
+  sh.classList.remove('open');
+  clearTimeout(sheetCloseTimer);
+  sheetCloseTimer = setTimeout(() => { sh.hidden = true; sh.innerHTML = ''; }, 200);
+}
+
+function openSheetShell(sh, bd) {
+  clearTimeout(sheetCloseTimer);
+  bd.hidden = false; sh.hidden = false;
+  requestAnimationFrame(() => sh.classList.add('open'));
 }
 
 async function openSkillSheet(name) {
@@ -771,9 +781,7 @@ async function openSkillSheet(name) {
       <div class="sheet-src" id="sheet-src-body" hidden></div>
     </div>`;
 
-  bd.hidden = false;
-  sh.hidden = false;
-  requestAnimationFrame(() => sh.classList.add('open'));
+  openSheetShell(sh, bd);
 
   const argsFor = () => $('#sheet-args').value.trim();
   const modelOverride = () => { const v = $('#sheet-model').value; return v || targetModel(); };
@@ -1564,11 +1572,14 @@ function paletteGo(item) {
   }
 }
 
+let paletteCloseTimer = null;
+
 async function openPalette() {
   if (paletteState.open) return;
   paletteState.open = true;
   const pal = $('#palette'), bd = $('#palette-backdrop');
   closeSheet();
+  clearTimeout(paletteCloseTimer);
   bd.hidden = false; pal.hidden = false;
   requestAnimationFrame(() => pal.classList.add('open'));
   const inp = $('#palette-input');
@@ -1595,9 +1606,11 @@ async function openPalette() {
 function closePalette() {
   if (!paletteState.open) return;
   paletteState.open = false;
-  $('#palette').classList.remove('open');
-  $('#palette').hidden = true;
+  const pal = $('#palette');
+  pal.classList.remove('open');
   $('#palette-backdrop').hidden = true;
+  clearTimeout(paletteCloseTimer);
+  paletteCloseTimer = setTimeout(() => { pal.hidden = true; }, 170);
 }
 
 // ---------------------------------------------------------------- keyboard
