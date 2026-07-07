@@ -240,9 +240,10 @@ input, select, textarea { font: inherit; color: inherit; }
   display: inline-block;
   flex: none;
 }
-.lamp-green { background: var(--green); box-shadow: 0 0 7px var(--green); }
-.lamp-amber { background: var(--accent); box-shadow: 0 0 7px var(--accent); }
-.lamp-red   { background: var(--red); }
+.lamp-green  { background: var(--green); box-shadow: 0 0 7px var(--green); }
+.lamp-amber  { background: var(--accent); box-shadow: 0 0 7px var(--accent); }
+.lamp-red    { background: var(--red); }
+.lamp-queued { background: var(--text-faint); }
 .lamp-pulse { animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -998,7 +999,9 @@ input, select, textarea { font: inherit; color: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ar-meta { font-family: var(--mono); font-size: 10px; color: var(--text-faint); white-space: nowrap; }
-.ar-status { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; color: var(--text-dim); }
+.ar-status { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; color: var(--text-dim); display: inline-flex; align-items: center; gap: 8px; }
+.active-run.persisted { cursor: default; opacity: 0.75; }
+.active-run.persisted:hover { opacity: 1; }
 
 .active-sess {
   display: grid; grid-template-columns: 12px minmax(0, 1fr) auto;

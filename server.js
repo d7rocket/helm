@@ -204,7 +204,7 @@ function handleRunStream(req, res, q) {
   });
   const send = (ev) => res.write(`data: ${JSON.stringify(ev)}\n\n`);
   for (const ev of run.events) send(ev);
-  if (run.status !== 'running') { res.write('event: eof\ndata: {}\n\n'); res.end(); return; }
+  if (run.status !== 'running' && run.status !== 'queued') { res.write('event: eof\ndata: {}\n\n'); res.end(); return; }
   const listener = (ev) => {
     send(ev);
     if (ev.kind === 'done' || ev.kind === 'error') {

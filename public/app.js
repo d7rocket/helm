@@ -437,11 +437,11 @@ function openComposer() {
     if (!prompt()) return $('#cmp-prompt').focus();
     const cwd = $('#target-proj').value;
     try {
-      const { id } = await api('/api/run', {
+      const { id, queued } = await api('/api/run', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: prompt(), cwd, dangerous: state.boot.config.dangerous, model: model() }),
       });
-      closeSheet(); attachRun(id, prompt());
+      closeSheet(); attachRun(id, prompt(), { status: queued ? 'queued' : 'running' });
     } catch (e) { alert(e.message); }
   };
   $('#cmp-term').onclick = async () => {
@@ -585,11 +585,11 @@ async function launchSkill(name, args) {
   const model = targetModel();
   const prompt = '/' + name + (args ? ' ' + args : '');
   try {
-    const { id } = await api('/api/run', {
+    const { id, queued } = await api('/api/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, cwd, dangerous, model }),
     });
-    attachRun(id, prompt);
+    attachRun(id, prompt, { status: queued ? 'queued' : 'running' });
   } catch (e) {
     alert(e.message);
   }
@@ -667,11 +667,11 @@ async function openSkillSheet(name) {
     const cwd = $('#target-proj').value;
     const prompt = '/' + name + (argsFor() ? ' ' + argsFor() : '');
     try {
-      const { id } = await api('/api/run', {
+      const { id, queued } = await api('/api/run', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, cwd, dangerous: state.boot.config.dangerous, model: modelOverride() }),
       });
-      closeSheet(); attachRun(id, prompt);
+      closeSheet(); attachRun(id, prompt, { status: queued ? 'queued' : 'running' });
     } catch (e) { alert(e.message); }
   };
   $('#sheet-term').onclick = async () => {
@@ -1027,15 +1027,26 @@ function renderActive(a) {
   const body = $('#active-body');
   if (!body) return;
   const runsHtml = a.runs.length ? a.runs.map(r => {
-    const lamp = r.status === 'running' ? 'lamp-amber lamp-pulse' : r.status === 'done' ? 'lamp-green' : 'lamp-red';
+    if (r.persisted) {
+      const when = r.startedAt ? `${fmtDateShort(r.startedAt)} ${fmtTime(r.startedAt)}` : '';
+      return `
+      <div class="active-run persisted" title="${esc(r.resultText || '')}">
+        <span class="lamp ${lampClass(r.status)}"></span>
+        <span class="ar-prompt">${esc(r.prompt)}</span>
+        <span class="ar-meta">${when}${r.costUsd ? ` · $${r.costUsd.toFixed(2)}` : ''}${r.durationMs ? ' · ' + fmtDur(r.durationMs) : ''}</span>
+        <span class="ar-status">${esc(r.status.toUpperCase())}
+          <button class="btn btn-ghost btn-sm" data-rerun="${esc(r.id)}" title="run again with the same prompt/target">↻</button>
+        </span>
+      </div>`;
+    }
     return `
     <div class="active-run" data-openrun="${esc(r.id)}" data-prompt="${esc(r.prompt)}">
-      <span class="lamp ${lamp}"></span>
+      <span class="lamp ${lampClass(r.status)}"></span>
       <span class="ar-prompt">${esc(r.prompt)}</span>
       <span class="ar-meta">${esc(r.model || '')}${r.dangerous ? ' · YOLO' : ''} · ${r.events} ev</span>
       <span class="ar-status">${esc(r.status.toUpperCase())}</span>
     </div>`;
-  }).join('') : `<div class="empty">No runs launched from HELM this session.</div>`;
+  }).join('') : `<div class="empty">No runs yet — launch one from the pad.</div>`;
 
   const sessHtml = a.sessions.length ? a.sessions.map(s => `
     <a class="active-sess" href="#/session/${esc(s.slug)}/${esc(s.id)}">
@@ -1060,6 +1071,14 @@ function renderActive(a) {
     if (!state.runs.find(r => r.id === id)) attachRun(id, el.dataset.prompt, { open: true });
     else { state.activeRun = id; consoleEl.hidden = false; consoleEl.classList.add('open'); $('#console-toggle').textContent = '▼'; renderConsole(); }
   });
+  $$('[data-rerun]').forEach(el => el.onclick = async (e) => {
+    e.stopPropagation();
+    try {
+      const { id, queued } = await api('/api/rerun', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: el.dataset.rerun }) });
+      const src = a.runs.find(r => r.id === el.dataset.rerun);
+      attachRun(id, src ? src.prompt : '(re-run)', { status: queued ? 'queued' : 'running' });
+    } catch (err) { alert(err.message); }
+  });
 }
 
 // ---------------------------------------------------------------- CONSOLE
@@ -1079,9 +1098,16 @@ $('#console-bar').onclick = (e) => {
   $('#console-toggle').textContent = consoleEl.classList.contains('open') ? '▼' : '▲';
 };
 
+function lampClass(status) {
+  if (status === 'running') return 'lamp-amber lamp-pulse';
+  if (status === 'queued') return 'lamp-queued lamp-pulse';
+  if (status === 'done') return 'lamp-green';
+  return 'lamp-red';
+}
+
 function attachRun(id, prompt, opts = {}) {
-  const { open = true } = opts;
-  const run = { id, prompt, status: 'running', lines: [] };
+  const { open = true, status = 'running' } = opts;
+  const run = { id, prompt, status, lines: [] };
   state.runs.unshift(run);
   if (open || !state.activeRun) state.activeRun = id;
   consoleEl.hidden = false;
@@ -1095,6 +1121,7 @@ function attachRun(id, prompt, opts = {}) {
   es.onmessage = (msg) => {
     let ev; try { ev = JSON.parse(msg.data); } catch { return; }
     run.lines.push(ev);
+    if (ev.kind === 'launch' && run.status === 'queued') run.status = 'running'; // dequeued
     if (ev.kind === 'done') run.status = 'done';
     if (ev.kind === 'error') run.status = 'error';
     if (ev.kind === 'result' && !ev.ok) run.status = 'error';
@@ -1110,7 +1137,7 @@ function renderTabs() {
   if (live) live.hidden = !state.runs.some(r => r.status === 'running');
   consoleTabs.innerHTML = state.runs.slice(0, 8).map(r => `
     <button class="${state.activeRun === r.id ? 'active' : ''}" data-runtab="${r.id}">
-      <span class="lamp ${r.status === 'running' ? 'lamp-amber lamp-pulse' : r.status === 'done' ? 'lamp-green' : 'lamp-red'}"></span>
+      <span class="lamp ${lampClass(r.status)}"></span>
       ${esc(r.prompt.length > 30 ? r.prompt.slice(0, 29) + '…' : r.prompt)}
     </button>`).join('');
   $$('[data-runtab]').forEach(el => el.onclick = (e) => {
@@ -1129,8 +1156,8 @@ function renderConsole(append = false) {
     return;
   }
 
-  consoleLamp.className = 'lamp ' + (run.status === 'running' ? 'lamp-amber lamp-pulse' : run.status === 'done' ? 'lamp-green' : 'lamp-red');
-  const finished = run.status !== 'running';
+  consoleLamp.className = 'lamp ' + lampClass(run.status);
+  const finished = run.status !== 'running' && run.status !== 'queued';
   killBtn.hidden = finished;
   killBtn.onclick = async (e) => {
     e.stopPropagation();
@@ -1210,10 +1237,11 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- init
 
 (async function init() {
-  // Reattach to runs the server still remembers (page reloads don't lose telemetry)
+  // Reattach to live runs the server still remembers (page reloads don't lose telemetry)
   try {
     const runs = await api('/api/runs');
-    for (const r of runs.slice(0, 8).reverse()) attachRun(r.id, r.prompt, { open: false });
+    const live = runs.filter(r => !r.persisted);
+    for (const r of live.slice(0, 8).reverse()) attachRun(r.id, r.prompt, { open: false, status: r.status === 'queued' ? 'queued' : 'running' });
   } catch {}
   route();
 })();
