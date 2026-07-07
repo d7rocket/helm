@@ -294,7 +294,8 @@ async function viewToday(dateArg) {
   currentDay = date;
   const maxHour = Math.max(1, ...day.hourHist);
   const hourBars = day.hourHist.map((n, h) =>
-    `<div class="hbar ${n ? 'on' : ''}" style="height:${n ? Math.max(7, Math.round((n / maxHour) * 74)) : 2}px;animation-delay:${h * 16}ms">
+    `<div class="hcol">
+      <div class="hbar ${n ? 'on' : ''}" style="height:${n ? Math.max(7, Math.round((n / maxHour) * 74)) : 2}px;animation-delay:${h * 16}ms"></div>
       ${n ? `<span class="tip">${String(h).padStart(2, '0')}:00 — ${n} prompt${n > 1 ? 's' : ''}</span>` : ''}
     </div>`).join('');
 
@@ -364,7 +365,11 @@ async function viewToday(dateArg) {
 
     <section class="hours">
       <div class="hours-title">ACTIVITY BY HOUR</div>
-      <div class="hours-grid">${hourBars}</div>
+      <div class="chart-plot" style="height:74px">
+        <div class="chart-gl" style="bottom:99%"><span>${maxHour}</span></div>
+        <div class="chart-gl" style="bottom:50%"><span>${Math.round(maxHour / 2) || ''}</span></div>
+        <div class="hours-grid">${hourBars}</div>
+      </div>
       <div class="hours-labels">${hourLabels}</div>
     </section>
 
@@ -1076,7 +1081,7 @@ function renderSearch(r) {
 
 function fmtCost(n) { return '$' + (n || 0).toFixed(2); }
 
-const usageState = { days: 30 };
+const usageState = { days: 30, measure: 'out' };
 const USAGE_RANGES = [7, 30, 90, 120];
 
 // signed WoW delta chip; hidden when the previous week has no data
@@ -1093,11 +1098,19 @@ async function viewUsage() {
   const u = await api('/api/usage?days=' + usageState.days);
   const t = u.totals;
 
-  const maxDay = Math.max(1, ...u.series.map(d => d.out));
+  // one measure per axis — cost is a toggle, never a second y-scale
+  const measure = usageState.measure;
+  const val = d => measure === 'cost' ? d.cost : d.out;
+  const fmtVal = v => measure === 'cost' ? fmtCost(v) : fmtTokens(v);
+  const maxDay = Math.max(measure === 'cost' ? 0.01 : 1, ...u.series.map(val));
   const bars = u.series.map((d, i) =>
-    `<div class="ubar ${d.out ? 'on' : ''}" style="height:${d.out ? Math.max(4, Math.round(d.out / maxDay * 96)) : 2}px;animation-delay:${Math.min(i * 12, 500)}ms">
-      <span class="tip">${d.date.slice(5)} — ${fmtTokens(d.out)} tok · ${d.prompts} pr${d.cost ? ' · ' + fmtCost(d.cost) : ''}</span>
+    `<div class="ucol">
+      <div class="ubar ${val(d) ? 'on' : ''}" style="height:${val(d) ? Math.max(4, Math.round(val(d) / maxDay * 96)) : 2}px;animation-delay:${Math.min(i * 12, 500)}ms"></div>
+      <span class="tip">${d.date.slice(5)} — ${fmtTokens(d.out)} tok · ${d.prompts} pr · ${fmtCost(d.cost)}</span>
     </div>`).join('');
+  const xstep = Math.ceil(u.series.length / 6);
+  const xlabels = u.series.map((d, i) =>
+    `<span>${i % xstep === 0 ? d.date.slice(5).replace('-', '/') : ''}</span>`).join('');
 
   const maxModel = Math.max(1, ...u.models.map(m => m.out));
   const modelRows = u.models.map(m => `
@@ -1145,8 +1158,19 @@ async function viewUsage() {
     </div>
 
     <section class="hours">
-      <div class="hours-title">TOKENS OUT · LAST ${u.days} DAYS · ${fmtCost(rangeCost)} EST.</div>
-      <div class="hours-grid usage-grid" style="grid-template-columns:repeat(${u.series.length},1fr)">${bars}</div>
+      <div class="hours-title chart-title-row">
+        <span>${measure === 'cost' ? 'EST. SPEND' : 'TOKENS OUT'} · LAST ${u.days} DAYS · ${fmtCost(rangeCost)} EST. TOTAL</span>
+        <span class="chart-metric" id="usage-metric">
+          <button class="${measure === 'out' ? 'on' : ''}" data-measure="out">TOK</button>
+          <button class="${measure === 'cost' ? 'on' : ''}" data-measure="cost">$</button>
+        </span>
+      </div>
+      <div class="chart-plot" style="height:100px">
+        <div class="chart-gl" style="bottom:99%"><span>${fmtVal(maxDay)}</span></div>
+        <div class="chart-gl" style="bottom:50%"><span>${fmtVal(maxDay / 2)}</span></div>
+        <div class="hours-grid usage-grid" style="grid-template-columns:repeat(${u.series.length},1fr)">${bars}</div>
+      </div>
+      <div class="chart-x" style="grid-template-columns:repeat(${u.series.length},1fr)">${xlabels}</div>
     </section>
 
     <div class="usage-cols">
@@ -1164,6 +1188,10 @@ async function viewUsage() {
 
   $$('#usage-range [data-days]').forEach(b => b.onclick = () => {
     usageState.days = Number(b.dataset.days);
+    viewUsage();
+  });
+  $$('#usage-metric [data-measure]').forEach(b => b.onclick = () => {
+    usageState.measure = b.dataset.measure;
     viewUsage();
   });
   $$('[data-count]').forEach(countUp);
