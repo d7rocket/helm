@@ -1025,15 +1025,27 @@ function renderSearch(r) {
 
 function fmtCost(n) { return '$' + (n || 0).toFixed(2); }
 
+const usageState = { days: 30 };
+const USAGE_RANGES = [7, 30, 90, 120];
+
+// signed WoW delta chip; hidden when the previous week has no data
+function deltaChip(cur, prev, label) {
+  if (!prev) return '';
+  const pct = Math.round((cur - prev) / prev * 100);
+  if (!isFinite(pct)) return '';
+  const up = pct >= 0;
+  return `<span class="delta ${up ? 'up' : 'down'}" title="last 7 days vs the 7 before">${up ? '▲' : '▼'} ${Math.abs(pct)}% ${label}</span>`;
+}
+
 async function viewUsage() {
   await boot();
-  const u = await api('/api/usage?days=30');
+  const u = await api('/api/usage?days=' + usageState.days);
   const t = u.totals;
 
   const maxDay = Math.max(1, ...u.series.map(d => d.out));
   const bars = u.series.map((d, i) =>
-    `<div class="ubar ${d.out ? 'on' : ''}" style="height:${d.out ? Math.max(4, Math.round(d.out / maxDay * 96)) : 2}px;animation-delay:${i * 12}ms">
-      <span class="tip">${d.date.slice(5)} — ${fmtTokens(d.out)} tok · ${d.prompts} pr</span>
+    `<div class="ubar ${d.out ? 'on' : ''}" style="height:${d.out ? Math.max(4, Math.round(d.out / maxDay * 96)) : 2}px;animation-delay:${Math.min(i * 12, 500)}ms">
+      <span class="tip">${d.date.slice(5)} — ${fmtTokens(d.out)} tok · ${d.prompts} pr${d.cost ? ' · ' + fmtCost(d.cost) : ''}</span>
     </div>`).join('');
 
   const maxModel = Math.max(1, ...u.models.map(m => m.out));
@@ -1052,12 +1064,25 @@ async function viewUsage() {
       <span class="ubar-val">${fmtCost(p.cost)} · ${fmtTokens(p.out)}</span>
     </div>`).join('') || `<div class="empty">No project data.</div>`;
 
+  const rangeCost = u.series.reduce((a, d) => a + d.cost, 0);
+  const w = u.weeks || { cur: {}, prev: {} };
+  const chips = [
+    deltaChip(w.cur.out, w.prev.out, 'TOK'),
+    deltaChip(w.cur.cost, w.prev.cost, 'SPEND'),
+    deltaChip(w.cur.prompts, w.prev.prompts, 'PROMPTS'),
+  ].filter(Boolean).join('');
+
   main.innerHTML = `
   <div class="view">
-    <div class="view-head"><div>
-      <div class="view-kicker">TOKENS &amp; SPEND · ALL TIME</div>
-      <h1 class="view-title">USAGE</h1>
-    </div></div>
+    <div class="view-head">
+      <div>
+        <div class="view-kicker">TOKENS &amp; SPEND · ALL TIME</div>
+        <h1 class="view-title">USAGE</h1>
+      </div>
+      <div class="day-controls" id="usage-range">
+        ${USAGE_RANGES.map(d => `<button class="btn ${u.days === d ? 'btn-amber' : ''}" data-days="${d}">${d}D</button>`).join('')}
+      </div>
+    </div>
 
     <div class="day-ledger">
       <span><b data-count="${t.out}" data-fmt="tok">0</b> TOK OUT</span><span class="sep">·</span>
@@ -1065,11 +1090,12 @@ async function viewUsage() {
       <span><b data-count="${t.cacheRead}" data-fmt="tok">0</b> CACHE READ</span><span class="sep">·</span>
       <span><b>${fmtCost(t.cost)}</b> EST. SPEND</span><span class="sep">·</span>
       <span><b data-count="${t.sessions}">0</b> SESSIONS</span>
+      ${chips ? `<span class="sep">·</span>${chips}` : ''}
     </div>
 
     <section class="hours">
-      <div class="hours-title">TOKENS OUT · LAST ${u.days} DAYS</div>
-      <div class="hours-grid usage-grid">${bars}</div>
+      <div class="hours-title">TOKENS OUT · LAST ${u.days} DAYS · ${fmtCost(rangeCost)} EST.</div>
+      <div class="hours-grid usage-grid" style="grid-template-columns:repeat(${u.series.length},1fr)">${bars}</div>
     </section>
 
     <div class="usage-cols">
@@ -1085,6 +1111,10 @@ async function viewUsage() {
     <div class="usage-note">This is what your usage <em>would</em> cost at pay-as-you-go API rates — priced per message from each one's own model and exact token counts, not your actual (subscription) bill. Rates live in <code>lib/store.js › PRICING</code>.</div>
   </div>`;
 
+  $$('#usage-range [data-days]').forEach(b => b.onclick = () => {
+    usageState.days = Number(b.dataset.days);
+    viewUsage();
+  });
   $$('[data-count]').forEach(countUp);
 }
 
