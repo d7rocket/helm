@@ -344,6 +344,7 @@ async function viewToday(dateArg) {
         <h1 class="view-title">${DAYS[dt.getDay()]}<br><span class="thin">${String(d).padStart(2, '0')} ${MONTHS[dt.getMonth()]} ${y}</span></h1>
       </div>
       <div class="day-controls">
+        <button class="btn" id="day-export" title="copy this day as markdown — paste into your wins-log">.MD ⧉</button>
         <button class="btn" id="day-prev">‹</button>
         <button class="btn" id="day-next" ${isToday ? 'disabled' : ''}>›</button>
         <button class="btn btn-amber" id="day-today" ${isToday ? 'disabled' : ''}>TODAY</button>
@@ -378,6 +379,29 @@ async function viewToday(dateArg) {
     </div>
   </div>`;
 
+  $('#day-export').onclick = async () => {
+    const btn = $('#day-export');
+    const lines = [
+      `## ${date} — daily flight log`,
+      '',
+      `**${st.promptCount} prompts · ${st.sessionCount} sessions · ${st.projectCount} projects · ${fmtTokens(st.tokensOut)} tokens out**`,
+      '',
+    ];
+    const sorted = day.sessions.slice().sort((a, b2) => (a.start || '').localeCompare(b2.start || ''));
+    if (sorted.length) {
+      lines.push('### Sorties', '');
+      for (const s of sorted) {
+        const title = (s.title || s.firstPrompt || 'untitled session').replace(/\s+/g, ' ').trim();
+        lines.push(`- **${fmtTime(s.start)}–${fmtTime(s.end)} · ${s.project}** — ${title} (${s.prompts} prompts, ${s.toolCalls} tool calls, ${fmtTokens(s.tokensOut)} tok out)`);
+      }
+      lines.push('');
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      btn.textContent = 'COPIED ✓';
+    } catch { btn.textContent = 'FAILED'; }
+    setTimeout(() => { btn.textContent = '.MD ⧉'; }, 1800);
+  };
   $('#day-prev').onclick = () => location.hash = '#/today/' + shiftDay(date, -1);
   $('#day-next').onclick = () => location.hash = '#/today/' + shiftDay(date, 1);
   $('#day-today').onclick = () => location.hash = '#/today';
