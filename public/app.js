@@ -160,6 +160,80 @@ function paintAccentPicker() {
 }
 paintAccentPicker();
 
+// ---------------------------------------------------------------- notifications
+
+const TITLE_BASE = 'HELM · agentic ops';
+const FAVICON_BASE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a1013'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23e0324f' stroke-width='4'/%3E";
+let unseenRuns = 0;
+
+const notifyPref = () => { try { return localStorage.getItem('helm-notify') !== 'off'; } catch { return true; } };
+const notifyReady = () => 'Notification' in window && Notification.permission === 'granted' && notifyPref();
+
+function setBadge(kind) {
+  const link = $('#favicon');
+  if (!link) return;
+  const dot = kind === 'error'
+    ? "%3Ccircle cx='25' cy='7' r='6' fill='%23e05a32'/%3E"
+    : kind === 'done'
+      ? "%3Ccircle cx='25' cy='7' r='6' fill='%2334d399'/%3E"
+      : '';
+  link.href = FAVICON_BASE + dot + '%3C/svg%3E';
+}
+
+function clearUnseen() {
+  if (!unseenRuns) return;
+  unseenRuns = 0;
+  document.title = TITLE_BASE;
+  setBadge(null);
+}
+window.addEventListener('focus', clearUnseen);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) clearUnseen(); });
+
+function notifyRunEnd(run) {
+  if (!document.hidden && document.hasFocus()) return;   // user is watching — no need
+  const failed = run.status === 'error';
+  unseenRuns++;
+  document.title = `(${unseenRuns}) ${TITLE_BASE}`;
+  setBadge(failed ? 'error' : 'done');
+  if (!notifyReady()) return;
+  const result = [...run.lines].reverse().find(l => l.kind === 'result') || {};
+  const meta = [result.costUsd ? '$' + result.costUsd.toFixed(2) : '', result.durationMs ? fmtDur(result.durationMs) : '']
+    .filter(Boolean).join(' · ');
+  try {
+    const n = new Notification(failed ? 'HELM — run failed' : 'HELM — run complete', {
+      body: run.prompt.slice(0, 120) + (meta ? '\n' + meta : ''),
+      tag: 'helm-run-' + run.id,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch {}
+}
+
+function paintNotifyToggle() {
+  const btn = $('#notify-toggle'), icon = $('#nt-icon'), label = $('#nt-label');
+  if (!btn) return;
+  const supported = 'Notification' in window;
+  const perm = supported ? Notification.permission : 'denied';
+  btn.classList.remove('on', 'blocked');
+  if (!supported || perm === 'denied') { btn.classList.add('blocked'); icon.textContent = '⊘'; label.textContent = 'NOTIFY'; return; }
+  if (perm === 'granted' && notifyPref()) { btn.classList.add('on'); icon.textContent = '◉'; label.textContent = 'NOTIFY ON'; }
+  else { icon.textContent = '◌'; label.textContent = 'NOTIFY'; }
+}
+{
+  const btn = $('#notify-toggle');
+  if (btn) btn.onclick = async () => {
+    if (!('Notification' in window)) return alert('Notifications are not supported in this browser.');
+    if (Notification.permission === 'denied') return alert('Notifications are blocked — allow them for this site in your browser settings.');
+    if (Notification.permission === 'default') {
+      await Notification.requestPermission();
+      try { localStorage.setItem('helm-notify', 'on'); } catch {}
+    } else {
+      try { localStorage.setItem('helm-notify', notifyPref() ? 'off' : 'on'); } catch {}
+    }
+    paintNotifyToggle();
+  };
+  paintNotifyToggle();
+}
+
 // ---------------------------------------------------------------- router
 
 const routes = [
@@ -1106,8 +1180,8 @@ function lampClass(status) {
 }
 
 function attachRun(id, prompt, opts = {}) {
-  const { open = true, status = 'running' } = opts;
-  const run = { id, prompt, status, lines: [] };
+  const { open = true, status = 'running', silent = false } = opts;
+  const run = { id, prompt, status, lines: [], silent, notified: false };
   state.runs.unshift(run);
   if (open || !state.activeRun) state.activeRun = id;
   consoleEl.hidden = false;
@@ -1125,6 +1199,10 @@ function attachRun(id, prompt, opts = {}) {
     if (ev.kind === 'done') run.status = 'done';
     if (ev.kind === 'error') run.status = 'error';
     if (ev.kind === 'result' && !ev.ok) run.status = 'error';
+    if ((ev.kind === 'done' || ev.kind === 'error') && !run.notified && !run.silent) {
+      run.notified = true;
+      notifyRunEnd(run);
+    }
     if (state.activeRun === id) renderConsole(true);
     else renderTabs();
   };
@@ -1241,7 +1319,8 @@ document.addEventListener('keydown', (e) => {
   try {
     const runs = await api('/api/runs');
     const live = runs.filter(r => !r.persisted);
-    for (const r of live.slice(0, 8).reverse()) attachRun(r.id, r.prompt, { open: false, status: r.status === 'queued' ? 'queued' : 'running' });
+    // silent: replayed events from already-finished runs must not fire notifications
+    for (const r of live.slice(0, 8).reverse()) attachRun(r.id, r.prompt, { open: false, silent: r.status !== 'running' && r.status !== 'queued', status: r.status === 'queued' ? 'queued' : 'running' });
   } catch {}
   route();
 })();

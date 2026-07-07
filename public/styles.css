@@ -197,10 +197,16 @@ input, select, textarea { font: inherit; color: inherit; }
   width: 30px; font-size: 10px; color: var(--text-faint);
 }
 
-/* theme toggle — owns the flex spring so it + the foot sit at the bottom */
+/* theme toggle — the first of the bottom cluster owns the flex spring */
 .theme-toggle {
   margin-top: auto;
   margin-bottom: var(--sp-md);
+}
+#notify-toggle { margin-bottom: var(--sp-sm); }
+#theme-toggle { margin-top: 0; }
+#notify-toggle.on .tt-icon { color: var(--green); }
+#notify-toggle.blocked .tt-icon { color: var(--red); }
+.theme-toggle {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:;">
 <title>HELM · agentic ops</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a1013'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23e0324f' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a1013'/%3E%3Cpath d='M8 6v20M24 6v20M8 16h16' stroke='%23e0324f' stroke-width='4'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/styles.css">
 <!-- set theme before first paint (external file keeps CSP script-src 'self') -->
 <script src="/theme-init.js"></script>
@@ -25,6 +25,9 @@
     <a href="#/usage"    data-nav="usage"><span class="nav-no">05</span>USAGE</a>
     <a href="#/active"   data-nav="active"><span class="nav-no">06</span>ACTIVE<span class="nav-live" id="nav-live" hidden></span></a>
   </div>
+  <button class="theme-toggle" id="notify-toggle" type="button" aria-label="Toggle run-completion notifications">
+    <span class="tt-icon" id="nt-icon">◌</span><span class="tt-label" id="nt-label">NOTIFY</span>
+  </button>
   <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light or dark theme">
     <span class="tt-icon" id="tt-icon">☾</span><span class="tt-label" id="tt-label">DARK</span>
   </button>
