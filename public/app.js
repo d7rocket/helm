@@ -10,6 +10,7 @@ const state = {
   sessions: null,      // cached session list
   launch: { cat: 'all', q: '' },
   sessFilter: { q: '', project: '' },
+  sessSort: { key: 'date', dir: -1 },
   runs: [],            // active/finished runs (client view)
   activeRun: null,
 };
@@ -714,7 +715,7 @@ async function openSkillSheet(name) {
 // ---------------------------------------------------------------- SESSIONS
 
 async function viewSessions() {
-  if (!state.sessions) state.sessions = await api('/api/sessions');
+  state.sessions = await api('/api/sessions');   // always refetch — new sessions land while HELM is open
   const sessions = state.sessions;
   const projects = [...new Set(sessions.map(s => s.project))].sort();
 
@@ -737,20 +738,33 @@ async function viewSessions() {
   </div>`;
 
   let sessAnimated = false;
+  const SORTS = {
+    date:  { get: s => s.start || '', label: 'DATE' },
+    title: { get: s => (s.title || s.firstPrompt || '').toLowerCase(), label: 'SESSION' },
+    proj:  { get: s => s.project.toLowerCase(), label: 'PROJECT' },
+    dur:   { get: s => s.durationMs || 0, label: 'DUR', r: true },
+    tools: { get: s => s.toolCalls || 0, label: 'TOOLS', r: true },
+    tok:   { get: s => s.tokens.out || 0, label: 'TOK OUT', r: true },
+  };
   const render = () => {
     const anim = !sessAnimated;
     sessAnimated = true;
     const q = state.sessFilter.q.trim().toLowerCase();
     const proj = state.sessFilter.project;
+    const { key, dir } = state.sessSort;
+    const get = SORTS[key].get;
     const list = sessions.filter(s => {
       if (proj && s.project !== proj) return false;
       if (q && !((s.title || '') + ' ' + (s.firstPrompt || '') + ' ' + s.project).toLowerCase().includes(q)) return false;
       return true;
+    }).sort((a, b) => {
+      const va = get(a), vb = get(b);
+      return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * dir;
     });
     $('#sess-list').innerHTML = `
       <div class="list-head">
-        <span>DATE</span><span>SESSION</span><span>PROJECT</span>
-        <span class="r">DUR</span><span class="r">TOOLS</span><span class="r">TOK OUT</span>
+        ${Object.entries(SORTS).map(([k, c]) =>
+          `<button class="sort-col ${c.r ? 'r' : ''} ${key === k ? 'on' : ''}" data-sort="${k}">${c.label}${key === k ? `<span class="dir">${dir > 0 ? '▴' : '▾'}</span>` : ''}</button>`).join('')}
       </div>` +
       (list.map((s, i) => {
         const d = s.start ? new Date(s.start) : null;
@@ -767,6 +781,12 @@ async function viewSessions() {
           <span class="sess-num">${fmtTokens(s.tokens.out)}</span>
         </a>`;
       }).join('') || `<div class="empty">NO SESSIONS MATCH.</div>`);
+    $$('#sess-list [data-sort]').forEach(el => el.onclick = () => {
+      const k = el.dataset.sort;
+      const cur = state.sessSort;
+      state.sessSort = { key: k, dir: cur.key === k ? -cur.dir : (SORTS[k].r ? -1 : k === 'date' ? -1 : 1) };
+      render();
+    });
   };
 
   $('#sess-q').oninput = (e) => { state.sessFilter.q = e.target.value; render(); };

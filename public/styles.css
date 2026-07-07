@@ -729,6 +729,15 @@ input, select, textarea { font: inherit; color: inherit; }
   padding-bottom: 8px;
 }
 .list-head .r { text-align: right; }
+.sort-col {
+  font: inherit; letter-spacing: inherit; color: inherit;
+  text-align: left; padding: 0;
+  transition: color .12s;
+}
+.sort-col:hover { color: var(--text-dim); }
+.sort-col.on { color: var(--accent); }
+.sort-col.r { text-align: right; }
+.sort-col .dir { margin-left: 4px; font-size: 8px; }
 
 /* ============================================================ SESSION DETAIL */
 
