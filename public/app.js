@@ -240,7 +240,7 @@ const routes = [
   { re: /^#\/today(?:\/(\d{4}-\d{2}-\d{2}))?$/, view: viewToday, nav: 'today' },
   { re: /^#\/launch$/, view: viewLaunch, nav: 'launch' },
   { re: /^#\/sessions$/, view: viewSessions, nav: 'sessions' },
-  { re: /^#\/session\/([\w.-]+)\/([\w-]+)$/, view: viewSessionDetail, nav: 'sessions' },
+  { re: /^#\/session\/([\w.-]+)\/([\w-]+)(?:\/at\/([^/]+))?$/, view: viewSessionDetail, nav: 'sessions' },
   { re: /^#\/search$/, view: viewSearch, nav: 'search' },
   { re: /^#\/usage$/, view: viewUsage, nav: 'usage' },
   { re: /^#\/active$/, view: viewActive, nav: 'active' },
@@ -870,7 +870,7 @@ async function viewSessions() {
 
 // ---------------------------------------------------------------- SESSION DETAIL
 
-async function viewSessionDetail(slug, id) {
+async function viewSessionDetail(slug, id, at) {
   const detail = await api(`/api/session?slug=${encodeURIComponent(slug)}&id=${encodeURIComponent(id)}`);
   const s = detail.summary || {};
   const d = s.start ? new Date(s.start) : null;
@@ -887,10 +887,10 @@ async function viewSessionDetail(slug, id) {
 
   const html = blocks.map((b, i) => {
     if (b.kind === 'user') return `
-      <div class="tl-user"><div class="who">YOU · ${b.t ? fmtTime(b.t) : ''}</div>
+      <div class="tl-user" data-t="${esc(b.t || '')}"><div class="who">YOU · ${b.t ? fmtTime(b.t) : ''}</div>
       <div class="txt">${esc(b.text)}</div></div>`;
     if (b.kind === 'assistant') return `
-      <div class="tl-assistant"><div class="txt">${md(b.text)}</div></div>`;
+      <div class="tl-assistant" data-t="${esc(b.t || '')}"><div class="txt">${md(b.text)}</div></div>`;
     if (b.kind === 'tools') {
       const vis = b.items.slice(0, 6);
       const rest = b.items.length - vis.length;
@@ -944,6 +944,17 @@ async function viewSessionDetail(slug, id) {
     $(`[data-block="${idx}"]`).innerHTML =
       b.items.map(t => `<div class="tl-tool"><span class="tn">${esc(t.name)}</span><span class="td">${esc(t.detail || '')}</span></div>`).join('');
   });
+
+  // deep link from search: scroll to and flash the matched message
+  if (at) {
+    const target = decodeURIComponent(at);
+    const el = $$('.timeline [data-t]').find(n => n.dataset.t === target);
+    if (el) {
+      el.scrollIntoView({ block: 'center' });
+      el.classList.add('tl-hit');
+      setTimeout(() => el.classList.remove('tl-hit'), 2400);
+    }
+  }
 }
 
 // ---------------------------------------------------------------- SEARCH
@@ -998,13 +1009,16 @@ function renderSearch(r) {
   if (!r.hits.length) { el.innerHTML = `<div class="empty">NO HITS.<br><b>Nothing matched “${esc(r.query)}”.</b></div>`; return; }
   el.innerHTML = `<div class="search-count">${r.hits.length} session${r.hits.length === 1 ? '' : 's'} with matches</div>` +
     r.hits.map((h, i) => `
-    <a class="search-hit row-in" style="animation-delay:${Math.min(i * 20, 300)}ms" href="#/session/${esc(h.slug)}/${esc(h.id)}">
-      <div class="search-hit-head">
+    <div class="search-hit row-in" style="animation-delay:${Math.min(i * 20, 300)}ms">
+      <a class="search-hit-head" href="#/session/${esc(h.slug)}/${esc(h.id)}">
         <span class="sh-title">${esc(h.title)}</span>
         <span class="sh-meta">${esc(h.project)}${h.when ? ' · ' + fmtDateShort(h.when) : ''}</span>
-      </div>
-      ${h.snippets.map(s => `<div class="sh-snip"><span class="sh-k ${s.kind}">${s.kind === 'user' ? 'YOU' : 'CLAUDE'}</span><span>${mark(s.text, r.query)}</span></div>`).join('')}
-    </a>`).join('');
+      </a>
+      ${h.snippets.map(s => `
+      <a class="sh-snip" href="#/session/${esc(h.slug)}/${esc(h.id)}${s.t ? '/at/' + encodeURIComponent(s.t) : ''}" title="jump to this message">
+        <span class="sh-k ${s.kind}">${s.kind === 'user' ? 'YOU' : 'CLAUDE'}</span><span>${mark(s.text, r.query)}</span>
+      </a>`).join('')}
+    </div>`).join('');
 }
 
 // ---------------------------------------------------------------- USAGE

@@ -815,6 +815,13 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 .tl-turn::after { content: ''; height: 1px; background: var(--line-soft); flex: 1; }
 
+/* search deep-link target flash */
+.tl-hit { animation: hit-flash 2.4s ease-out; }
+@keyframes hit-flash {
+  0%, 55% { box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--accent-wash); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 /* ============================================================ CONSOLE */
 
 .console {
@@ -931,6 +938,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .search-hit:last-child { border-bottom: 1px solid var(--line-soft); }
 .search-hit:hover { background: linear-gradient(to right, transparent, var(--bg-raise) 6%, var(--bg-raise) 94%, transparent); }
 .search-hit-head { display: flex; justify-content: space-between; gap: var(--sp-md); align-items: baseline; margin-bottom: 8px; }
+.sh-snip { display: grid; }
+a.sh-snip:hover { background: var(--accent-wash); }
 .sh-title {
   font-size: 14.5px; font-weight: 500; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
